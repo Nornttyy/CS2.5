@@ -44,24 +44,24 @@
 
 <script>
 const MAP=[
-  {"type":"route","x1":380,"y1":68,"x2":160,"y2":215},{"type":"route","x1":380,"y1":68,"x2":380,"y2":265},
+  {"type":"route","x1":380,"y1":68,"x2":160,"y2":215},{"type":"route","x1":380,"y1":68,"x2":380,"y2":255},
   {"type":"route","x1":380,"y1":68,"x2":600,"y2":215},{"type":"route","x1":380,"y1":512,"x2":160,"y2":365},
   {"type":"route","x1":380,"y1":512,"x2":380,"y2":325},{"type":"route","x1":380,"y1":512,"x2":600,"y2":365},
   {"type":"route","x1":225,"y1":290,"x2":345,"y2":290},{"type":"route","x1":535,"y1":290,"x2":415,"y2":290},
   {"type":"tspawn","x":300,"y":20,"w":160,"h":48},{"type":"ctspawn","x":300,"y":512,"w":160,"h":48},
   {"type":"barrier","x":300,"y":74,"w":160,"h":16},{"type":"barrier","x":300,"y":490,"w":160,"h":16},
   {"type":"A","x":40,"y":215,"w":185,"h":150},{"type":"B","x":535,"y":215,"w":185,"h":150},
-  {"type":"house","x":345,"y":265,"w":70,"h":60},{"type":"house","x":255,"y":235,"w":45,"h":120},
-  {"type":"house","x":460,"y":235,"w":45,"h":120},{"type":"house","x":110,"y":110,"w":110,"h":50},
-  {"type":"house","x":540,"y":110,"w":110,"h":50},{"type":"house","x":110,"y":420,"w":110,"h":50},
-  {"type":"house","x":540,"y":420,"w":110,"h":50},
-  {"type":"crate","x":80,"y":250,"w":52,"h":52},{"type":"crate","x":640,"y":250,"w":52,"h":52},
-  {"type":"crate","x":150,"y":310,"w":52,"h":52},{"type":"crate","x":570,"y":310,"w":52,"h":52},
-  {"type":"crate","x":300,"y":220,"w":52,"h":52},{"type":"crate","x":420,"y":220,"w":52,"h":52},
-  {"type":"crate","x":300,"y":340,"w":52,"h":52},{"type":"crate","x":420,"y":340,"w":52,"h":52},
-  {"type":"crate","x":360,"y":175,"w":52,"h":52},{"type":"crate","x":360,"y":385,"w":52,"h":52},
-  {"type":"crate","x":200,"y":150,"w":52,"h":52},{"type":"crate","x":520,"y":150,"w":52,"h":52},
-  {"type":"crate","x":200,"y":400,"w":52,"h":52},{"type":"crate","x":520,"y":400,"w":52,"h":52}
+  {"type":"house","x":340,"y":255,"w":80,"h":80,"rot":0.78},
+  {"type":"house","x":248,"y":230,"w":50,"h":125,"rot":0.20},{"type":"house","x":462,"y":230,"w":50,"h":125,"rot":-0.20},
+  {"type":"house","x":95,"y":100,"w":130,"h":55,"rot":-0.30},{"type":"house","x":535,"y":100,"w":130,"h":55,"rot":0.30},
+  {"type":"house","x":95,"y":425,"w":130,"h":55,"rot":0.30},{"type":"house","x":535,"y":425,"w":130,"h":55,"rot":-0.30},
+  {"type":"house","x":300,"y":155,"w":65,"h":42,"rot":0.55},{"type":"house","x":395,"y":383,"w":65,"h":42,"rot":-0.55},
+  {"type":"crate","x":78,"y":250,"w":52,"h":52,"rot":0.40},{"type":"crate","x":630,"y":250,"w":52,"h":52,"rot":-0.40},
+  {"type":"crate","x":150,"y":315,"w":52,"h":52},{"type":"crate","x":558,"y":315,"w":52,"h":52},
+  {"type":"crate","x":290,"y":215,"w":52,"h":52,"rot":0.30},{"type":"crate","x":418,"y":215,"w":52,"h":52,"rot":-0.30},
+  {"type":"crate","x":290,"y":335,"w":52,"h":52},{"type":"crate","x":418,"y":335,"w":52,"h":52},
+  {"type":"crate","x":195,"y":150,"w":52,"h":52,"rot":-0.60},{"type":"crate","x":513,"y":150,"w":52,"h":52,"rot":0.60},
+  {"type":"crate","x":195,"y":400,"w":52,"h":52},{"type":"crate","x":513,"y":400,"w":52,"h":52}
 ];
 
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
@@ -82,12 +82,18 @@ for(const it of MAP){ if(it.type==='route'){
   ctx.beginPath(); ctx.moveTo(it.x1,it.y1); ctx.lineTo(it.x2,it.y2); ctx.stroke(); } }
 ctx.setLineDash([]);
 
-// 建筑/木箱
+// 建筑/木箱（支持旋转角度）
+function drawRotBox(it,fill,stroke,lw,rad){
+  ctx.save();
+  ctx.translate(it.x+it.w/2, it.y+it.h/2);
+  if(it.rot) ctx.rotate(it.rot);
+  ctx.fillStyle=fill; ctx.strokeStyle=stroke; ctx.lineWidth=lw;
+  rr(-it.w/2,-it.h/2,it.w,it.h,rad); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
 for(const it of MAP){
-  if(it.type==='house'){ ctx.fillStyle='#2e3a44'; ctx.strokeStyle='#44525e'; ctx.lineWidth=2;
-    rr(it.x,it.y,it.w,it.h,5); ctx.fill(); ctx.stroke(); }
-  if(it.type==='crate'){ ctx.fillStyle='#3c4a55'; ctx.strokeStyle='#55636e'; ctx.lineWidth=1.5;
-    rr(it.x,it.y,it.w,it.h,3); ctx.fill(); ctx.stroke(); }
+  if(it.type==='house') drawRotBox(it,'#2e3a44','#44525e',2,5);
+  if(it.type==='crate') drawRotBox(it,'#3c4a55','#55636e',1.5,3);
 }
 
 // 炸弹点
