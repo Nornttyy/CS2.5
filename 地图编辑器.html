@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS2.5 · 地图编辑器</title>
+<style>
+  :root{--bg:#0f1923;--red:#ff4655;--cream:#ece8e1;--dim:#7a8b96;}
+  body{margin:0;background:var(--bg);color:var(--cream);font-family:"Microsoft YaHei",sans-serif;
+    display:flex;flex-direction:column;align-items:center;padding:14px;}
+  h1{font-size:20px;margin:4px;letter-spacing:2px;}
+  .tip{color:#ffd479;margin-bottom:10px;text-align:center;font-size:14px;}
+  .bar{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;max-width:1000px;margin-bottom:8px;}
+  button{font-size:14px;padding:8px 11px;border:none;border-radius:7px;cursor:pointer;
+    background:#2c3a45;color:var(--cream);font-family:inherit;}
+  button:hover{filter:brightness(1.2);}
+  button.red{background:var(--red);color:#fff;}
+  button.go{background:#42b765;color:#fff;font-weight:bold;}
+  button.warn{background:#b94a4a;color:#fff;}
+  canvas{background:#11202b;border-radius:10px;border:1px solid #1d2b35;max-width:96vw;height:auto;touch-action:none;}
+  .exp{margin-top:10px;width:1000px;max-width:96vw;}
+  textarea{width:100%;height:64px;border-radius:8px;border:1px solid #314350;padding:8px;
+    font-family:monospace;font-size:12px;background:#0b121a;color:#9fe;box-sizing:border-box;}
+  .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+  <h1>CS2.5 · 地图编辑器</h1>
+  <div class="tip">拖方块移动　·　黄点改大小　·　绿点转方向　·　选中按 Delete 删　|　改完点【保存到游戏】，再去游戏里就是你的地图</div>
+
+  <div class="bar">
+    <button onclick="add('tower')">加 高塔</button>
+    <button onclick="add('building')">加 楼房</button>
+    <button onclick="add('lowwall')">加 矮墙</button>
+    <button onclick="add('crate')">加 木箱</button>
+    <button onclick="add('ramp')">加 斜坡</button>
+    <button onclick="add('barrier')">加 屏障</button>
+    <button onclick="add('A')">放 A 点</button>
+    <button onclick="add('B')">放 B 点</button>
+    <button onclick="add('tspawn')">进攻出生</button>
+    <button onclick="add('ctspawn')">防守出生</button>
+    <button onclick="addRoute()">加 路线</button>
+    <button class="warn" onclick="delSel()">删除选中</button>
+    <button onclick="resetMap()">恢复默认</button>
+  </div>
+
+  <canvas id="cv" width="1000" height="760"></canvas>
+
+  <div class="exp">
+    <div class="row">
+      <button class="go" onclick="saveGame()">★ 保存到游戏</button>
+      <button class="red" onclick="window.open('走进沙漠小镇.html','_blank')">试玩我的地图</button>
+      <button onclick="doExport()">导出代码</button>
+      <button onclick="doImport()">读取代码</button>
+      <button onclick="copyCode()">复制</button>
+    </div>
+    <textarea id="code" placeholder="导出的地图代码会出现在这里（也可粘贴别人的代码后点读取）"></textarea>
+  </div>
+
+<script>
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const W=cv.width, H=cv.height, BORDER=10, EP=12;
+const SAVE_KEY='cs25_map';
+
+// 显示用样式；存进游戏时 tower/building/lowwall 都转成 type:"house"+hh
+const STY={
+  tspawn:{fill:'rgba(255,70,85,.18)',stroke:'#ff4655',label:'进攻方',w:160,h:50},
+  ctspawn:{fill:'rgba(90,176,208,.18)',stroke:'#5ab0d0',label:'防守方',w:160,h:50},
+  A:{fill:'rgba(255,70,85,.10)',stroke:'#ff4655',label:'A',w:185,h:150,big:true,dash:true},
+  B:{fill:'rgba(255,70,85,.10)',stroke:'#ff4655',label:'B',w:185,h:150,big:true,dash:true},
+  tower:{fill:'#4a5b68',stroke:'#52616e',label:'塔',w:80,h:80},
+  building:{fill:'#2e3a44',stroke:'#52616e',label:'楼',w:120,h:70},
+  lowwall:{fill:'#24303a',stroke:'#52616e',label:'矮墙',w:140,h:28},
+  crate:{fill:'#3c4a55',stroke:'#55636e',label:'',w:32,h:32},
+  barrier:{fill:'rgba(255,70,85,.5)',stroke:'#ff4655',label:'',w:160,h:16},
+  ramp:{fill:'rgba(120,170,120,.3)',stroke:'#7aa86a',label:'坡↑',w:76,h:85},
+};
+const HHOF={tower:9, building:3.8, lowwall:1.5};
+
+// 把游戏格式(house+hh)读进编辑器时，反推显示类别
+function editType(it){
+  if(it.type==='house'){ const h=it.hh||3.8; return h>=7?'tower':(h<=1.6?'lowwall':'building'); }
+  return it.type;
+}
+
+function defaultItems(){
+  return GAME_TO_EDIT([
+    {"type":"tspawn","x":420,"y":30,"w":160,"h":50},{"type":"ctspawn","x":420,"y":680,"w":160,"h":50},
+    {"type":"barrier","x":420,"y":86,"w":160,"h":16},{"type":"barrier","x":420,"y":658,"w":160,"h":16},
+    {"type":"A","x":70,"y":290,"w":210,"h":180},{"type":"B","x":720,"y":290,"w":210,"h":180},
+    {"type":"house","x":455,"y":335,"w":90,"h":90,"rot":0.78,"hh":9},
+    {"type":"house","x":430,"y":252,"w":140,"h":26,"hh":1.4},{"type":"house","x":430,"y":482,"w":140,"h":26,"hh":1.4},
+    {"type":"house","x":320,"y":300,"w":55,"h":170,"rot":0.18,"hh":4.5},{"type":"house","x":625,"y":300,"w":55,"h":170,"rot":-0.18,"hh":4.5},
+    {"type":"house","x":150,"y":150,"w":160,"h":70,"rot":-0.22,"hh":3.8},{"type":"house","x":690,"y":150,"w":160,"h":70,"rot":0.22,"hh":3.8},
+    {"type":"house","x":420,"y":158,"w":160,"h":30,"hh":1.4},
+    {"type":"house","x":150,"y":540,"w":160,"h":70,"rot":0.22,"hh":3.8},{"type":"house","x":690,"y":540,"w":160,"h":70,"rot":-0.22,"hh":3.8},
+    {"type":"house","x":420,"y":572,"w":160,"h":30,"hh":1.4},
+    {"type":"house","x":300,"y":175,"w":120,"h":75,"hh":2.4},{"type":"house","x":580,"y":175,"w":120,"h":75,"hh":2.4},
+    {"type":"ramp","x":322,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"},{"type":"ramp","x":602,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"},
+    {"type":"crate","x":130,"y":360,"w":32,"h":32},{"type":"crate","x":838,"y":360,"w":32,"h":32},
+    {"type":"crate","x":230,"y":330,"w":32,"h":32,"rot":0.4},{"type":"crate","x":738,"y":330,"w":32,"h":32,"rot":-0.4}
+  ]);
+}
+function GAME_TO_EDIT(arr){ return arr.map(it=>({...it, et:editType(it)})); }
+
+let items=[];
+let selected=null, drag=null;
+
+// 打开时优先读你保存过的地图
+(function init(){
+  try{ const s=localStorage.getItem(SAVE_KEY); if(s){ const a=JSON.parse(s); if(Array.isArray(a)&&a.length){ items=GAME_TO_EDIT(a); } } }catch(e){}
+  if(!items.length) items=defaultItems();
+  draw();
+})();
+
+function add(et){
+  const s=STY[et];
+  const it={et, type:(HHOF[et]!==undefined?'house':et), x:W/2-s.w/2, y:H/2-s.h/2, w:s.w, h:s.h};
+  if(HHOF[et]!==undefined) it.hh=HHOF[et];
+  if(et==='ramp'){ it.lo=0; it.hi=2.4; it.up='n'; }
+  items.push(it); selected=it; draw();
+}
+function addRoute(){ const it={et:'route',type:'route',x1:W/2-90,y1:H/2,x2:W/2+90,y2:H/2}; items.push(it); selected=it; draw(); }
+function delSel(){ if(selected){ items=items.filter(i=>i!==selected); selected=null; draw(); } }
+function resetMap(){ items=defaultItems(); selected=null; draw(); }
+
+function draw(){
+  ctx.fillStyle='#11202b'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#22332c'; ctx.fillRect(BORDER,BORDER,W-2*BORDER,H-2*BORDER);
+  ctx.strokeStyle='#37505a'; ctx.lineWidth=3; ctx.strokeRect(BORDER,BORDER,W-2*BORDER,H-2*BORDER);
+  // 路线
+  for(const it of items){ if(it.et!=='route') continue;
+    const sel=it===selected;
+    ctx.strokeStyle=sel?'#ffe14d':'#b98e4f'; ctx.lineWidth=sel?5:3; ctx.setLineDash([10,8]);
+    ctx.beginPath(); ctx.moveTo(it.x1,it.y1); ctx.lineTo(it.x2,it.y2); ctx.stroke(); ctx.setLineDash([]);
+    for(const [px,py] of [[it.x1,it.y1],[it.x2,it.y2]]){ ctx.beginPath(); ctx.arc(px,py,7,0,7);
+      ctx.fillStyle=sel?'#ffe14d':'#8a5a20'; ctx.fill(); }
+  }
+  // 方块
+  for(const it of items){ if(it.et==='route') continue;
+    const s=STY[it.et]||STY.building;
+    const cx=it.x+it.w/2, cy=it.y+it.h/2, rot=it.rot||0;
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(rot);
+    ctx.fillStyle=s.fill; ctx.strokeStyle=s.stroke; ctx.lineWidth=s.big?4:2;
+    if(s.dash) ctx.setLineDash([12,7]); else ctx.setLineDash([]);
+    rr(-it.w/2,-it.h/2,it.w,it.h,6); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+    if(s.label){ ctx.fillStyle=s.big?'#ff8a93':'#cdd8df';
+      ctx.font=(s.big?'bold 52px':'14px')+' "Microsoft YaHei",sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(s.label,0,0); }
+    if(it===selected){
+      ctx.strokeStyle='#ffe14d'; ctx.lineWidth=2.5; ctx.setLineDash([6,4]);
+      ctx.strokeRect(-it.w/2-4,-it.h/2-4,it.w+8,it.h+8); ctx.setLineDash([]);
+      ctx.fillStyle='#ffe14d'; ctx.strokeStyle='#5a3a14'; ctx.lineWidth=2;
+      ctx.fillRect(it.w/2-7,it.h/2-7,14,14); ctx.strokeRect(it.w/2-7,it.h/2-7,14,14);
+      ctx.strokeStyle='#42b765'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(0,-it.h/2); ctx.lineTo(0,-it.h/2-22); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0,-it.h/2-22,7,0,7); ctx.fillStyle='#42b765'; ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+function posFromEvent(e){ const r=cv.getBoundingClientRect();
+  const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+  const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+  return {x:cx*(W/r.width), y:cy*(H/r.height)}; }
+function dist(ax,ay,bx,by){ return Math.hypot(ax-bx,ay-by); }
+function toLocal(cx,cy,rot,p){ const dx=p.x-cx,dy=p.y-cy,c=Math.cos(-rot),s=Math.sin(-rot);
+  return {x:dx*c-dy*s, y:dx*s+dy*c}; }
+function clampX(v){return Math.max(BORDER,Math.min(W-BORDER,v));}
+function clampY(v){return Math.max(BORDER,Math.min(H-BORDER,v));}
+
+function onDown(e){ e.preventDefault(); const p=posFromEvent(e);
+  if(selected && selected.et!=='route'){
+    const cx=selected.x+selected.w/2,cy=selected.y+selected.h/2,rot=selected.rot||0,L=toLocal(cx,cy,rot,p);
+    if(dist(L.x,L.y,0,-selected.h/2-22)<=12){ drag={k:'rot',cx,cy}; return; }
+    if(dist(L.x,L.y,selected.w/2,selected.h/2)<=14){ drag={k:'size',cx,cy}; return; }
+  }
+  for(let i=items.length-1;i>=0;i--){ const it=items[i]; if(it.et!=='route') continue;
+    if(dist(p.x,p.y,it.x1,it.y1)<=EP){ selected=it; drag={k:'p1'}; draw(); return; }
+    if(dist(p.x,p.y,it.x2,it.y2)<=EP){ selected=it; drag={k:'p2'}; draw(); return; } }
+  for(let i=items.length-1;i>=0;i--){ const it=items[i]; if(it.et==='route') continue;
+    const cx=it.x+it.w/2,cy=it.y+it.h/2,rot=it.rot||0,L=toLocal(cx,cy,rot,p);
+    if(Math.abs(L.x)<=it.w/2&&Math.abs(L.y)<=it.h/2){ selected=it; drag={k:'move',dx:p.x-it.x,dy:p.y-it.y}; draw(); return; } }
+  selected=null; drag=null; draw();
+}
+function onMove(e){ if(!drag||!selected) return; e.preventDefault(); const p=posFromEvent(e);
+  if(drag.k==='move'){ selected.x=Math.round(Math.max(BORDER,Math.min(W-BORDER-selected.w,p.x-drag.dx)));
+    selected.y=Math.round(Math.max(BORDER,Math.min(H-BORDER-selected.h,p.y-drag.dy))); }
+  else if(drag.k==='size'){ const rot=selected.rot||0,L=toLocal(drag.cx,drag.cy,rot,p);
+    selected.w=Math.round(Math.max(20,Math.abs(L.x)*2)); selected.h=Math.round(Math.max(16,Math.abs(L.y)*2));
+    selected.x=Math.round(drag.cx-selected.w/2); selected.y=Math.round(drag.cy-selected.h/2); }
+  else if(drag.k==='rot'){ selected.rot=Math.atan2(p.y-drag.cy,p.x-drag.cx)+Math.PI/2; }
+  else if(drag.k==='p1'){ selected.x1=Math.round(clampX(p.x)); selected.y1=Math.round(clampY(p.y)); }
+  else if(drag.k==='p2'){ selected.x2=Math.round(clampX(p.x)); selected.y2=Math.round(clampY(p.y)); }
+  draw();
+}
+function onUp(){ drag=null; }
+cv.addEventListener('mousedown',onDown); window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp);
+cv.addEventListener('touchstart',onDown,{passive:false}); cv.addEventListener('touchmove',onMove,{passive:false}); cv.addEventListener('touchend',onUp);
+window.addEventListener('keydown',e=>{ if(e.key==='Delete'||e.key==='Backspace') delSel(); });
+
+// 转成游戏用的格式（去掉编辑器内部字段 et）
+function toGame(){ return items.map(it=>{ const o={...it}; delete o.et; return o; }); }
+function saveGame(){ localStorage.setItem(SAVE_KEY, JSON.stringify(toGame()));
+  alert('已保存！点【试玩我的地图】就能玩你改的地图了。'); }
+function doExport(){ document.getElementById('code').value='CS25地图:'+JSON.stringify(toGame()); }
+function doImport(){ try{ let v=document.getElementById('code').value.trim().replace(/^CS25地图:/,'');
+    const a=JSON.parse(v); if(Array.isArray(a)){ items=GAME_TO_EDIT(a); selected=null; draw(); } }
+  catch(e){ alert('代码读不出来，检查有没有复制完整'); } }
+function copyCode(){ const t=document.getElementById('code'); if(!t.value) doExport(); t.select();
+  navigator.clipboard&&navigator.clipboard.writeText(t.value); }
+</script>
+</body>
+</html>

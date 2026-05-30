@@ -55,7 +55,7 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-const MAP=[
+const DEFAULT_MAP=[
   {"type":"tspawn","x":420,"y":30,"w":160,"h":50},{"type":"ctspawn","x":420,"y":680,"w":160,"h":50},
   {"type":"barrier","x":420,"y":86,"w":160,"h":16},{"type":"barrier","x":420,"y":658,"w":160,"h":16},
   {"type":"A","x":70,"y":290,"w":210,"h":180},{"type":"B","x":720,"y":290,"w":210,"h":180},
@@ -78,6 +78,9 @@ const MAP=[
 ];
 const MW=1000, MH=760, DIV=8;
 const HGT={house:3.8, barrier:1.6, crate:1.7, wall:4.6};
+// 如果你在编辑器里保存过地图，就用你的；否则用默认地图
+let MAP=DEFAULT_MAP;
+try{ const s=localStorage.getItem('cs25_map'); if(s){ const a=JSON.parse(s); if(Array.isArray(a)&&a.length>2) MAP=a; } }catch(e){}
 // 2D地图坐标 → 3D世界坐标
 const wx=(x)=>(x-MW/2)/DIV, wz=(y)=>(y-MH/2)/DIV;
 
