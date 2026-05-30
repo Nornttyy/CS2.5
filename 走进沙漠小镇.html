@@ -234,22 +234,16 @@ for(const it of MAP){
 const controls=new PointerLockControls(camera, renderer.domElement);
 const lock=document.getElementById('lock');
 let paused=false;
-// 鼠标自动隐藏/显示：动一下就显示，静止 1.8 秒自动隐藏；暂停时一直显示
-let cursorTimer=null;
-function armCursorHide(){
-  clearTimeout(cursorTimer);
-  document.body.style.cursor='';
-  if(!paused) cursorTimer=setTimeout(()=>{ if(!paused) document.body.style.cursor='none'; }, 1800);
-}
-addEventListener('mousemove', armCursorHide);
+// 鼠标：玩的时候自动隐藏，暂停时显示
+function applyCursor(){ document.body.style.cursor = paused ? 'default' : 'none'; }
 renderer.domElement.addEventListener('click',()=>controls.lock());
 lock.addEventListener('click',()=>controls.lock());
 document.getElementById('resumeBtn').addEventListener('click',e=>{e.stopPropagation();controls.lock();});
 document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();location.href='index.html';});
-controls.addEventListener('lock',()=>{ paused=false; lock.style.display='none'; armCursorHide(); });
-controls.addEventListener('unlock',()=>{ paused=true; lock.style.display='flex'; clearTimeout(cursorTimer); document.body.style.cursor=''; });
+controls.addEventListener('lock',()=>{ paused=false; lock.style.display='none'; applyCursor(); });
+controls.addEventListener('unlock',()=>{ paused=true; lock.style.display='flex'; applyCursor(); });
 scene.add(controls.getObject());
-armCursorHide();
+applyCursor();
 
 const keys={};
 addEventListener('keydown',e=>keys[e.code]=true);
@@ -259,7 +253,7 @@ addEventListener('resize',()=>{
   renderer.setSize(innerWidth,innerHeight);
 });
 
-const R=0.45, EYE=1.7, STEP=0.6, GRAV=22, JUMP=7.2;
+const R=0.45, EYE=1.7, STEP=0.45, GRAV=22, JUMP=8.0;
 let feet=0, vy=0;
 // 点是否在某盒子的俯视脚印内
 function inBox(b,x,z){
@@ -303,10 +297,16 @@ function animate(){
     }
     // 垂直：站在方块顶 + 跳 + 重力
     const sup=supportAt(o.position.x, o.position.z, feet);
-    if(feet<=sup+0.02){ feet=sup; vy=0; if(keys.Space) vy=JUMP; }
-    vy-=GRAV*dt;
-    feet+=vy*dt;
-    if(feet<sup){ feet=sup; vy=0; }
+    if(vy<=0 && feet<=sup+0.05){
+      // 在地面/平台上：贴合并可起跳
+      feet=sup; vy=0;
+      if(keys.Space) vy=JUMP;
+    }else{
+      // 在空中：只受重力；下落时才落到面上（上升不会被吸住）
+      vy-=GRAV*dt;
+      feet+=vy*dt;
+      if(vy<=0 && feet<sup){ feet=sup; vy=0; }
+    }
     o.position.y=feet+EYE;
   }
   renderer.render(scene,camera);
