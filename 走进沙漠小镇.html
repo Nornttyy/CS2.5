@@ -195,8 +195,8 @@ function blocked(x,z){
   for(const b of colliders){
     const dx=x-b.cx, dz=z-b.cz;
     const c=Math.cos(b.rot), s=Math.sin(b.rot);
-    const lx= dx*c + dz*s;   // 把点转回盒子的本地坐标系
-    const lz=-dx*s + dz*c;
+    const lx= dx*c - dz*s;   // 把点转回盒子的本地坐标系（与网格旋转一致）
+    const lz= dx*s + dz*c;
     if(Math.abs(lx)<b.hw+R && Math.abs(lz)<b.hd+R) return true;
   }
   return false;
