@@ -31,7 +31,7 @@
   <div id="cross"></div>
   <div id="hint">W A S D 移动　·　鼠标 转头看　·　Esc 暂停</div>
   <div id="lock">
-    <div id="startBox"><h2>走进沙漠小镇</h2><p>点击屏幕开始</p><p class="red">第一人称 · 真实光影</p></div>
+    <div id="startBox"><p>点击屏幕开始</p></div>
     <div id="pauseBox" style="display:none">
       <h2>已暂停</h2>
       <button class="mbtn" id="resumeBtn">继续游戏</button>
@@ -68,7 +68,7 @@ const MAP=[
   {"type":"crate","x":200,"y":400,"w":52,"h":52},{"type":"crate","x":520,"y":400,"w":52,"h":52}
 ];
 const MW=760, MH=580, DIV=8;
-const HGT={house:3.4, barrier:1.6, crate:2.2, wall:4.0};
+const HGT={house:3.8, barrier:1.6, crate:3.2, wall:4.4};
 // 2D地图坐标 → 3D世界坐标
 const wx=(x)=>(x-MW/2)/DIV, wz=(y)=>(y-MH/2)/DIV;
 
