@@ -45,6 +45,12 @@
     <button onclick="resetMap()">恢复默认</button>
   </div>
 
+  <div class="bar" id="hpanel" style="opacity:.4;align-items:center">
+    <span>选中建筑高度：</span>
+    <input type="range" id="hslider" min="1" max="14" step="0.5" value="3.8" style="width:240px" disabled>
+    <span id="hval" style="min-width:54px;display:inline-block">—</span>
+  </div>
+
   <canvas id="cv" width="1000" height="760"></canvas>
 
   <div class="exp">
@@ -163,9 +169,25 @@ function draw(){
     }
     ctx.restore();
   }
+  updateHeightUI();
 }
 function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+// 建筑高度滑块
+const hslider=document.getElementById('hslider'), hval=document.getElementById('hval'), hpanel=document.getElementById('hpanel');
+function updateHeightUI(){
+  if(selected && selected.type==='house'){
+    hpanel.style.opacity='1'; hslider.disabled=false;
+    hslider.value=selected.hh||3.8; hval.textContent=(selected.hh||3.8)+' 米';
+  }else{ hpanel.style.opacity='.4'; hslider.disabled=true; hval.textContent='—'; }
+}
+hslider.addEventListener('input',()=>{
+  if(selected && selected.type==='house'){
+    selected.hh=parseFloat(hslider.value); selected.et=editType(selected);
+    hval.textContent=selected.hh+' 米'; draw();
+  }
+});
 
 function posFromEvent(e){ const r=cv.getBoundingClientRect();
   const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
