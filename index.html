@@ -70,9 +70,9 @@
       <p class="desc">沙漠小镇　·　安装尖刺　·　守住包点</p>
 
       <div class="menu">
-        <button class="btn play" onclick="pick('开始游戏')"><span class="bar"></span><span class="ico">🎮</span>开始游戏</button>
-        <button class="btn" onclick="pick('设置')"><span class="bar"></span><span class="ico">⚙️</span>设置</button>
-        <button class="btn" onclick="pick('关于')"><span class="bar"></span><span class="ico">ℹ️</span>关于</button>
+        <button class="btn play" onclick="pick('开始游戏')"><span class="bar"></span>开始游戏</button>
+        <button class="btn" onclick="pick('设置')"><span class="bar"></span>设置</button>
+        <button class="btn" onclick="pick('关于')"><span class="bar"></span>关于</button>
       </div>
     </main>
 
@@ -120,7 +120,7 @@ frame();
 const toast=document.getElementById('toast');
 let tt=null;
 function pick(name){
-  toast.textContent='【'+name+'】马上就来 🚧';
+  toast.textContent='【'+name+'】开发中';
   toast.classList.add('show');
   clearTimeout(tt); tt=setTimeout(()=>toast.classList.remove('show'),1800);
 }
