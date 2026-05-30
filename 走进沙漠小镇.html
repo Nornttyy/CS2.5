@@ -203,7 +203,8 @@ for(const it of MAP){
   }else if(it.type==='crate'){
     addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, HGT.crate, MAT.crate, roty);
   }else if(it.type==='barrier'){
-    barriers.push(addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, HGT.barrier, MAT.barrier, roty));
+    const bh = it.hh!==undefined ? it.hh : HGT.barrier;
+    barriers.push(addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, bh, MAT.barrier, roty));
   }else if(it.type==='ramp'){
     addRamp(it);
   }else if(it.type==='palm'){

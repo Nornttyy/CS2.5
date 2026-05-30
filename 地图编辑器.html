@@ -203,16 +203,19 @@ function updateHeightUI(){
   if(mode==='wall'){
     hpanel.style.opacity='1'; hslider.disabled=false;
     hslider.value=wallHeight; hval.textContent='画墙高度 '+wallHeight+' 米';
-  }else if(selected && selected.type==='house'){
+  }else if(selected && (selected.type==='house'||selected.type==='barrier')){
+    const def = selected.type==='barrier'?1.6:3.8;
+    const v = selected.hh!==undefined?selected.hh:def;
     hpanel.style.opacity='1'; hslider.disabled=false;
-    hslider.value=selected.hh||3.8; hval.textContent=(selected.hh||3.8)+' 米';
+    hslider.value=v; hval.textContent=v+' 米';
   }else{ hpanel.style.opacity='.4'; hslider.disabled=true; hval.textContent='—'; }
 }
 hslider.addEventListener('input',()=>{
   const v=parseFloat(hslider.value);
   if(mode==='wall'){ wallHeight=v; hval.textContent='画墙高度 '+v+' 米'; }
-  else if(selected && selected.type==='house'){
-    selected.hh=v; selected.et=editType(selected); hval.textContent=v+' 米'; draw();
+  else if(selected && (selected.type==='house'||selected.type==='barrier')){
+    selected.hh=v; if(selected.type==='house') selected.et=editType(selected);
+    hval.textContent=v+' 米'; draw();
   }
 });
 
