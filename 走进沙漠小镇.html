@@ -17,6 +17,10 @@
   #lock h2{font-size:30px;letter-spacing:3px;margin:0 0 10px;}
   #lock p{color:#9fb0bc;letter-spacing:2px;margin:4px;}
   #lock .red{color:#ff4655;}
+  .mbtn{display:block;margin:12px auto 0;min-width:220px;padding:13px 22px;border:none;cursor:pointer;
+    font-family:inherit;font-size:17px;letter-spacing:2px;color:#fff;background:rgba(255,70,85,.18);
+    clip-path:polygon(0 0,100% 0,100% 100%,14px 100%,0 calc(100% - 14px));transition:.15s;}
+  .mbtn:hover{background:#ff4655;}
   #hint{position:fixed;left:18px;bottom:16px;z-index:3;color:#9fb0bc;font-size:14px;letter-spacing:1px;
     background:rgba(15,25,35,.5);padding:8px 12px;border-radius:6px;}
   #err{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;text-align:center;
@@ -25,8 +29,15 @@
 </head>
 <body>
   <div id="cross"></div>
-  <div id="hint">W A S D 移动　·　鼠标 转头看　·　Esc 松开鼠标</div>
-  <div id="lock"><h2>走进沙漠小镇</h2><p>点击屏幕开始</p><p class="red">第一人称 · 真实光影</p></div>
+  <div id="hint">W A S D 移动　·　鼠标 转头看　·　Esc 暂停</div>
+  <div id="lock">
+    <div id="startBox"><h2>走进沙漠小镇</h2><p>点击屏幕开始</p><p class="red">第一人称 · 真实光影</p></div>
+    <div id="pauseBox" style="display:none">
+      <h2>已暂停</h2>
+      <button class="mbtn" id="resumeBtn">继续游戏</button>
+      <button class="mbtn" id="menuBtn">返回主菜单</button>
+    </div>
+  </div>
   <div id="err">需要联网才能加载 3D 引擎，请连上网络后刷新。</div>
 
 <script type="importmap">
@@ -48,16 +59,16 @@ const MAP=[
   {"type":"house","x":460,"y":235,"w":45,"h":120},{"type":"house","x":110,"y":110,"w":110,"h":50},
   {"type":"house","x":540,"y":110,"w":110,"h":50},{"type":"house","x":110,"y":420,"w":110,"h":50},
   {"type":"house","x":540,"y":420,"w":110,"h":50},
-  {"type":"crate","x":80,"y":250,"w":40,"h":40},{"type":"crate","x":640,"y":250,"w":40,"h":40},
-  {"type":"crate","x":150,"y":310,"w":40,"h":40},{"type":"crate","x":570,"y":310,"w":40,"h":40},
-  {"type":"crate","x":300,"y":220,"w":40,"h":40},{"type":"crate","x":420,"y":220,"w":40,"h":40},
-  {"type":"crate","x":300,"y":340,"w":40,"h":40},{"type":"crate","x":420,"y":340,"w":40,"h":40},
-  {"type":"crate","x":360,"y":175,"w":40,"h":40},{"type":"crate","x":360,"y":385,"w":40,"h":40},
-  {"type":"crate","x":200,"y":150,"w":40,"h":40},{"type":"crate","x":520,"y":150,"w":40,"h":40},
-  {"type":"crate","x":200,"y":400,"w":40,"h":40},{"type":"crate","x":520,"y":400,"w":40,"h":40}
+  {"type":"crate","x":80,"y":250,"w":52,"h":52},{"type":"crate","x":640,"y":250,"w":52,"h":52},
+  {"type":"crate","x":150,"y":310,"w":52,"h":52},{"type":"crate","x":570,"y":310,"w":52,"h":52},
+  {"type":"crate","x":300,"y":220,"w":52,"h":52},{"type":"crate","x":420,"y":220,"w":52,"h":52},
+  {"type":"crate","x":300,"y":340,"w":52,"h":52},{"type":"crate","x":420,"y":340,"w":52,"h":52},
+  {"type":"crate","x":360,"y":175,"w":52,"h":52},{"type":"crate","x":360,"y":385,"w":52,"h":52},
+  {"type":"crate","x":200,"y":150,"w":52,"h":52},{"type":"crate","x":520,"y":150,"w":52,"h":52},
+  {"type":"crate","x":200,"y":400,"w":52,"h":52},{"type":"crate","x":520,"y":400,"w":52,"h":52}
 ];
 const MW=760, MH=580, DIV=8;
-const HGT={house:3.4, barrier:1.6, crate:1.5, wall:4.0};
+const HGT={house:3.4, barrier:1.6, crate:2.2, wall:4.0};
 // 2D地图坐标 → 3D世界坐标
 const wx=(x)=>(x-MW/2)/DIV, wz=(y)=>(y-MH/2)/DIV;
 
@@ -161,9 +172,14 @@ for(const it of MAP){
 // ===== 第一人称控制 =====
 const controls=new PointerLockControls(camera, renderer.domElement);
 const lock=document.getElementById('lock');
+const startBox=document.getElementById('startBox'), pauseBox=document.getElementById('pauseBox');
+let started=false;
 lock.addEventListener('click',()=>controls.lock());
-controls.addEventListener('lock',()=>lock.style.display='none');
-controls.addEventListener('unlock',()=>lock.style.display='flex');
+document.getElementById('resumeBtn').addEventListener('click',e=>{e.stopPropagation();controls.lock();});
+document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();location.href='index.html';});
+controls.addEventListener('lock',()=>{ started=true; lock.style.display='none'; });
+controls.addEventListener('unlock',()=>{ lock.style.display='flex';
+  startBox.style.display=started?'none':'block'; pauseBox.style.display=started?'block':'none'; });
 scene.add(controls.getObject());
 
 const keys={};

@@ -5,7 +5,7 @@ extends Node3D
 const DIV := 8.0       # 多少像素算 1 米（数值越小，地图越大）
 const MAP_W := 760.0   # 2D 地图宽
 const MAP_H := 580.0   # 2D 地图高
-const HEIGHTS := {"house": 3.4, "barrier": 1.6, "crate": 1.5}
+const HEIGHTS := {"house": 3.4, "barrier": 1.6, "crate": 2.2}
 const COLORS := {
 	"house": Color(0.79, 0.66, 0.42),
 	"barrier": Color(0.35, 0.70, 0.88),
