@@ -185,13 +185,22 @@ for(const it of MAP){
 const controls=new PointerLockControls(camera, renderer.domElement);
 const lock=document.getElementById('lock');
 let paused=false;
+// 鼠标自动隐藏/显示：动一下就显示，静止 1.8 秒自动隐藏；暂停时一直显示
+let cursorTimer=null;
+function armCursorHide(){
+  clearTimeout(cursorTimer);
+  document.body.style.cursor='';
+  if(!paused) cursorTimer=setTimeout(()=>{ if(!paused) document.body.style.cursor='none'; }, 1800);
+}
+addEventListener('mousemove', armCursorHide);
 renderer.domElement.addEventListener('click',()=>controls.lock());
 lock.addEventListener('click',()=>controls.lock());
 document.getElementById('resumeBtn').addEventListener('click',e=>{e.stopPropagation();controls.lock();});
 document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();location.href='index.html';});
-controls.addEventListener('lock',()=>{ paused=false; lock.style.display='none'; });
-controls.addEventListener('unlock',()=>{ paused=true; lock.style.display='flex'; });
+controls.addEventListener('lock',()=>{ paused=false; lock.style.display='none'; armCursorHide(); });
+controls.addEventListener('unlock',()=>{ paused=true; lock.style.display='flex'; clearTimeout(cursorTimer); document.body.style.cursor=''; });
 scene.add(controls.getObject());
+armCursorHide();
 
 const keys={};
 addEventListener('keydown',e=>keys[e.code]=true);
