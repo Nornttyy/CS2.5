@@ -1,0 +1,15 @@
+# Godot 4 自动生成 / 缓存
+.godot/
+.import/
+
+# 导出产物
+export.cfg
+export_presets.cfg
+build/
+*.exe
+*.pck
+*.zip
+
+# 系统
+.DS_Store
+Thumbs.db

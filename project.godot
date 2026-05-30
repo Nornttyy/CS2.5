@@ -1,0 +1,25 @@
+; Engine configuration file.
+; Godot 4.x — 2D 非像素风（HD / 平滑）游戏工程
+; 详细约定见 CLAUDE.md
+
+config_version=5
+
+[application]
+
+config/name="chongqichengbaomojin"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+config/icon="res://icon.svg"
+
+[display]
+
+; 非像素风：用 canvas_items 缩放，平滑拉伸
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[rendering]
+
+; 非像素风：画布纹理默认使用 Linear（线性）过滤，避免缩放锯齿
+textures/canvas_textures/default_texture_filter=1
