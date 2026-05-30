@@ -23,13 +23,18 @@
   .mbtn:hover{background:#ff4655;}
   #hint{position:fixed;left:18px;bottom:16px;z-index:3;color:#9fb0bc;font-size:14px;letter-spacing:1px;
     background:rgba(15,25,35,.5);padding:8px 12px;border-radius:6px;}
+  #clickhint{position:fixed;left:50%;top:60%;transform:translateX(-50%);z-index:3;pointer-events:none;
+    color:#fff;background:rgba(255,70,85,.9);padding:11px 20px;border-radius:8px;font-size:17px;
+    letter-spacing:1px;box-shadow:0 6px 20px rgba(255,70,85,.4);animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
   #err{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;text-align:center;
     background:#0f1923;color:#ff4655;font-size:18px;padding:30px;}
 </style>
 </head>
 <body>
   <div id="cross"></div>
-  <div id="hint">W A S D 移动　·　方向键 转视角（或点击用鼠标）　·　空格 跳　·　Esc 暂停</div>
+  <div id="hint">W A S D 移动　·　方向键 转视角　·　空格 跳　·　Esc 暂停</div>
+  <div id="clickhint">点击画面 → 用鼠标转视角</div>
   <div id="lock" style="display:none">
     <div id="pauseBox">
       <h2>已暂停</h2>
@@ -241,7 +246,7 @@ renderer.domElement.addEventListener('click',()=>controls.lock());
 lock.addEventListener('click',()=>controls.lock());
 document.getElementById('resumeBtn').addEventListener('click',e=>{e.stopPropagation();controls.lock();});
 document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();location.href='index.html';});
-controls.addEventListener('lock',()=>{ paused=false; lock.style.display='none'; applyCursor(); });
+controls.addEventListener('lock',()=>{ paused=false; lock.style.display='none'; document.getElementById('clickhint').style.display='none'; applyCursor(); });
 controls.addEventListener('unlock',()=>{ paused=true; lock.style.display='flex'; applyCursor(); });
 scene.add(controls.getObject());
 applyCursor();
