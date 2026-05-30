@@ -3,9 +3,9 @@ extends Node3D
 # 2D 编辑器里的坐标(px) → 3D 世界坐标(米)：每 10 像素 = 1 米
 
 const DIV := 8.0       # 多少像素算 1 米（数值越小，地图越大）
-const MAP_W := 760.0   # 2D 地图宽
-const MAP_H := 580.0   # 2D 地图高
-const HEIGHTS := {"house": 3.8, "barrier": 1.6, "crate": 3.2}
+const MAP_W := 1000.0  # 2D 地图宽
+const MAP_H := 760.0   # 2D 地图高
+const HEIGHTS := {"house": 3.8, "barrier": 1.6, "crate": 1.7}
 const COLORS := {
 	"house": Color(0.79, 0.66, 0.42),
 	"barrier": Color(0.35, 0.70, 0.88),
@@ -61,21 +61,27 @@ func _build_from_map() -> void:
 			var c := _to_world(it["x"] + it["w"] / 2.0, it["y"] + it["h"] / 2.0)
 			var col := Color(0.94, 0.64, 0.35) if ty == "tspawn" else Color(0.44, 0.71, 0.88)
 			_visual_box(Vector3(c.x, 0.06, c.z), Vector3(it["w"] / DIV, 0.1, it["h"] / DIV), col, 0.0)
-			_label(c + Vector3(0, 2.2, 0), "🥷出生" if ty == "tspawn" else "👮出生")
+			_label(c + Vector3(0, 2.2, 0), "进攻方" if ty == "tspawn" else "防守方")
 			if ty == "ctspawn":
 				ct_pos = c
 			continue
 		if ty == "A" or ty == "B":
 			var c2 := _to_world(it["x"] + it["w"] / 2.0, it["y"] + it["h"] / 2.0)
 			_visual_box(Vector3(c2.x, 0.07, c2.z), Vector3(it["w"] / DIV, 0.12, it["h"] / DIV), Color(0.85, 0.25, 0.25, 0.55), 0.0)
-			_label(c2 + Vector3(0, 2.6, 0), ty + " 点 💣")
+			_label(c2 + Vector3(0, 2.6, 0), ty + " 点")
 			continue
-		# house / barrier / crate → 实体方块
+		# house / barrier / crate → 实体方块（高度可由 hh 自定义）
 		if HEIGHTS.has(ty):
-			var h: float = HEIGHTS[ty]
+			var h: float = it.get("hh", HEIGHTS[ty])
 			var c3 := _to_world(it["x"] + it["w"] / 2.0, it["y"] + it["h"] / 2.0)
 			var rot: float = it.get("rot", 0.0)
-			_static_box(Vector3(c3.x, h / 2.0, c3.z), Vector3(it["w"] / DIV, h, it["h"] / DIV), COLORS[ty], -rot)
+			var col: Color = COLORS[ty]
+			if ty == "house":
+				if h >= 7.0:
+					col = Color(0.66, 0.52, 0.31)   # 高塔
+				elif h <= 1.6:
+					col = Color(0.87, 0.78, 0.56)   # 矮墙
+			_static_box(Vector3(c3.x, h / 2.0, c3.z), Vector3(it["w"] / DIV, h, it["h"] / DIV), col, -rot)
 	# 把玩家放到警察出生点
 	var p := get_node_or_null("Player")
 	if p:
