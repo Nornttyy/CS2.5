@@ -67,7 +67,9 @@ const MAP=[
   {"type":"crate","x":230,"y":330,"w":32,"h":32,"rot":0.4},{"type":"crate","x":738,"y":330,"w":32,"h":32,"rot":-0.4},
   {"type":"crate","x":400,"y":360,"w":32,"h":32,"rot":0.3},{"type":"crate","x":568,"y":360,"w":32,"h":32,"rot":-0.3},
   {"type":"crate","x":300,"y":205,"w":32,"h":32},{"type":"crate","x":668,"y":205,"w":32,"h":32},
-  {"type":"crate","x":300,"y":525,"w":32,"h":32},{"type":"crate","x":668,"y":525,"w":32,"h":32}
+  {"type":"crate","x":300,"y":525,"w":32,"h":32},{"type":"crate","x":668,"y":525,"w":32,"h":32},
+  {"type":"house","x":300,"y":175,"w":120,"h":75,"hh":2.4},{"type":"house","x":580,"y":175,"w":120,"h":75,"hh":2.4},
+  {"type":"ramp","x":322,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"},{"type":"ramp","x":602,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"}
 ];
 const MW=1000, MH=760, DIV=8;
 const HGT={house:3.8, barrier:1.6, crate:1.7, wall:4.6};
@@ -124,6 +126,7 @@ const MAT={
 };
 function houseMat(hh){ return hh>=7 ? MAT.tower : (hh<=1.6 ? MAT.lowwall : MAT.house); }
 const colliders=[];
+const ramps=[];
 function addBox(cx,cz,w,d,h,mat,roty){
   roty=roty||0;
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
@@ -151,6 +154,23 @@ function makePalm(mx,my){
   }
   colliders.push({cx:x, cz:z, hw:0.35, hd:0.35, rot:0, top:4.6});
 }
+// 斜坡（能走上去到高台）
+function addRamp(it){
+  const cx=wx(it.x+it.w/2), cz=wz(it.y+it.h/2);
+  const hwx=it.w/2/DIV, hwz=it.h/2/DIV;
+  const lo=it.lo||0, hi=it.hi, highN=(it.up==='n');
+  const ang=Math.atan2(hi-lo, 2*hwz), len=Math.hypot(2*hwz, hi-lo);
+  const m=new THREE.Mesh(new THREE.BoxGeometry(2*hwx, 0.4, len), MAT.lowwall);
+  m.position.set(cx, (lo+hi)/2, cz); m.rotation.x = highN?ang:-ang;
+  m.castShadow=true; m.receiveShadow=true; scene.add(m);
+  ramps.push({minx:cx-hwx, maxx:cx+hwx, minz:cz-hwz, maxz:cz+hwz, lo, hi, highN});
+}
+function rampHeight(r,x,z){
+  if(x<r.minx||x>r.maxx||z<r.minz||z>r.maxz) return null;
+  let t=(z-r.minz)/(r.maxz-r.minz);
+  if(r.highN) t=1-t;
+  return r.lo + (r.hi-r.lo)*t;
+}
 for(const it of MAP){
   const roty=-(it.rot||0);
   if(it.type==='house'){
@@ -164,6 +184,8 @@ for(const it of MAP){
     addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, HGT.crate, MAT.crate, roty);
   }else if(it.type==='barrier'){
     addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, HGT.barrier, MAT.barrier, roty);
+  }else if(it.type==='ramp'){
+    addRamp(it);
   }
 }
 // 四面围墙
@@ -255,6 +277,7 @@ function blockedH(x,z,ft){
 function supportAt(x,z,ft){
   let sp=0;
   for(const b of colliders) if(b.top<=ft+STEP && inBox(b,x,z)) sp=Math.max(sp,b.top);
+  for(const r of ramps){ const h=rampHeight(r,x,z); if(h!==null && h<=ft+STEP+0.05) sp=Math.max(sp,h); }
   return sp;
 }
 

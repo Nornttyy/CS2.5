@@ -64,7 +64,9 @@ const MAP=[
   {"type":"crate","x":230,"y":330,"w":32,"h":32,"rot":0.4},{"type":"crate","x":738,"y":330,"w":32,"h":32,"rot":-0.4},
   {"type":"crate","x":400,"y":360,"w":32,"h":32,"rot":0.3},{"type":"crate","x":568,"y":360,"w":32,"h":32,"rot":-0.3},
   {"type":"crate","x":300,"y":205,"w":32,"h":32},{"type":"crate","x":668,"y":205,"w":32,"h":32},
-  {"type":"crate","x":300,"y":525,"w":32,"h":32},{"type":"crate","x":668,"y":525,"w":32,"h":32}
+  {"type":"crate","x":300,"y":525,"w":32,"h":32},{"type":"crate","x":668,"y":525,"w":32,"h":32},
+  {"type":"house","x":300,"y":175,"w":120,"h":75,"hh":2.4},{"type":"house","x":580,"y":175,"w":120,"h":75,"hh":2.4},
+  {"type":"ramp","x":322,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"},{"type":"ramp","x":602,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"}
 ];
 
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
@@ -101,6 +103,12 @@ for(const it of MAP){
     drawRotBox(it,fill,'#52616e',2,5);
   }
   if(it.type==='crate') drawRotBox(it,'#3c4a55','#55636e',1.5,3);
+  if(it.type==='ramp'){   // 斜坡：条纹箭头表示往高处走
+    ctx.save(); ctx.fillStyle='rgba(120,170,120,.30)'; ctx.strokeStyle='#7aa86a'; ctx.lineWidth=2;
+    rr(it.x,it.y,it.w,it.h,4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#9fc98a'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('斜坡↑', it.x+it.w/2, it.y+it.h/2); ctx.restore();
+  }
 }
 
 // 炸弹点
