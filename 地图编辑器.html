@@ -117,12 +117,12 @@ function GAME_TO_EDIT(arr){ return arr.map(it=>({...it, et:editType(it)})); }
 let items=[];
 let selected=null, drag=null;
 
-// 打开时优先读你保存过的地图
-(function init(){
+// 打开时优先读你保存过的地图（在脚本最后调用 init()，确保所有控件已就绪）
+function init(){
   try{ const s=localStorage.getItem(SAVE_KEY); if(s){ const a=JSON.parse(s); if(Array.isArray(a)&&a.length){ items=GAME_TO_EDIT(a); } } }catch(e){}
   if(!items.length) items=defaultItems();
   draw();
-})();
+}
 
 function add(et){
   const s=STY[et];
@@ -239,6 +239,8 @@ function doImport(){ try{ let v=document.getElementById('code').value.trim().rep
   catch(e){ alert('代码读不出来，检查有没有复制完整'); } }
 function copyCode(){ const t=document.getElementById('code'); if(!t.value) doExport(); t.select();
   navigator.clipboard&&navigator.clipboard.writeText(t.value); }
+
+init();
 </script>
 </body>
 </html>
