@@ -29,7 +29,7 @@
 </head>
 <body>
   <div id="cross"></div>
-  <div id="hint">W A S D 移动　·　空格 跳　·　鼠标 转头看　·　Esc 暂停</div>
+  <div id="hint">W A S D 移动　·　方向键 转视角（或点击用鼠标）　·　空格 跳　·　Esc 暂停</div>
   <div id="lock" style="display:none">
     <div id="pauseBox">
       <h2>已暂停</h2>
@@ -81,6 +81,7 @@ scene.background=new THREE.Color(0x9ec6e6);
 scene.fog=new THREE.Fog(0x9ec6e6, 55, 165);
 
 const camera=new THREE.PerspectiveCamera(72, innerWidth/innerHeight, 0.1, 300);
+camera.rotation.order='YXZ';   // 先偏航后俯仰，方便键盘转视角
 camera.position.set(0, 1.7, wz(705));
 
 const renderer=new THREE.WebGLRenderer({antialias:true});
@@ -246,7 +247,9 @@ scene.add(controls.getObject());
 applyCursor();
 
 const keys={};
-addEventListener('keydown',e=>keys[e.code]=true);
+addEventListener('keydown',e=>{ keys[e.code]=true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+});
 addEventListener('keyup',e=>keys[e.code]=false);
 addEventListener('resize',()=>{
   camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
@@ -282,6 +285,12 @@ function animate(){
   const dt=Math.min(clock.getDelta(),0.05);
   if(!paused){
     const o=controls.getObject();
+    // 方向键转视角（不用点鼠标也能看）
+    const LOOK=2.0;
+    if(keys.ArrowLeft)  camera.rotation.y += LOOK*dt;
+    if(keys.ArrowRight) camera.rotation.y -= LOOK*dt;
+    if(keys.ArrowUp)    camera.rotation.x = Math.min(1.4, camera.rotation.x + LOOK*dt);
+    if(keys.ArrowDown)  camera.rotation.x = Math.max(-1.4, camera.rotation.x - LOOK*dt);
     // 水平移动
     camera.getWorldDirection(fwd); fwd.y=0; fwd.normalize();
     const right=new THREE.Vector3(-fwd.z,0,fwd.x);
