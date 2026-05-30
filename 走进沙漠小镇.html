@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>走进沙漠小镇 · 第一人称</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0f1923;
+    font-family:"Microsoft YaHei","PingFang SC",sans-serif;color:#ece8e1;}
+  #c{display:block;}
+  #cross{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;pointer-events:none;}
+  #cross::before,#cross::after{content:"";position:absolute;background:rgba(255,255,255,.85);}
+  #cross::before{width:2px;height:14px;left:-1px;top:-7px;}
+  #cross::after{height:2px;width:14px;top:-1px;left:-7px;}
+  #lock{position:fixed;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(15,25,35,.82);cursor:pointer;text-align:center;}
+  #lock h2{font-size:30px;letter-spacing:3px;margin:0 0 10px;}
+  #lock p{color:#9fb0bc;letter-spacing:2px;margin:4px;}
+  #lock .red{color:#ff4655;}
+  #hint{position:fixed;left:18px;bottom:16px;z-index:3;color:#9fb0bc;font-size:14px;letter-spacing:1px;
+    background:rgba(15,25,35,.5);padding:8px 12px;border-radius:6px;}
+  #err{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;text-align:center;
+    background:#0f1923;color:#ff4655;font-size:18px;padding:30px;}
+</style>
+</head>
+<body>
+  <div id="cross"></div>
+  <div id="hint">W A S D 移动　·　鼠标 转头看　·　Esc 松开鼠标</div>
+  <div id="lock"><h2>走进沙漠小镇</h2><p>点击屏幕开始</p><p class="red">第一人称 · 真实光影</p></div>
+  <div id="err">需要联网才能加载 3D 引擎，请连上网络后刷新。</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+const MAP=[
+  {"type":"tspawn","x":330,"y":25,"w":100,"h":45},{"type":"ctspawn","x":330,"y":510,"w":100,"h":45},
+  {"type":"barrier","x":330,"y":78,"w":100,"h":16},{"type":"barrier","x":330,"y":486,"w":100,"h":16},
+  {"type":"A","x":55,"y":245,"w":150,"h":120},{"type":"B","x":555,"y":245,"w":150,"h":120},
+  {"type":"house","x":345,"y":255,"w":70,"h":90},{"type":"house","x":235,"y":180,"w":55,"h":230},
+  {"type":"house","x":470,"y":180,"w":55,"h":230},{"type":"house","x":70,"y":110,"w":120,"h":60},
+  {"type":"house","x":570,"y":110,"w":120,"h":60},{"type":"house","x":70,"y":400,"w":120,"h":60},
+  {"type":"house","x":570,"y":400,"w":120,"h":60},{"type":"house","x":350,"y":115,"w":60,"h":50},
+  {"type":"house","x":350,"y":415,"w":60,"h":50},
+  {"type":"crate","x":95,"y":265,"w":28,"h":28},{"type":"crate","x":637,"y":265,"w":28,"h":28},
+  {"type":"crate","x":150,"y":330,"w":28,"h":28},{"type":"crate","x":582,"y":330,"w":28,"h":28},
+  {"type":"crate","x":300,"y":285,"w":28,"h":28},{"type":"crate","x":432,"y":285,"w":28,"h":28},
+  {"type":"crate","x":300,"y":330,"w":28,"h":28},{"type":"crate","x":432,"y":330,"w":28,"h":28},
+  {"type":"crate","x":366,"y":200,"w":28,"h":28},{"type":"crate","x":366,"y":360,"w":28,"h":28}
+];
+const MW=760, MH=580, DIV=10;
+const HGT={house:3.0, barrier:1.6, crate:1.0, wall:4.0};
+// 2D地图坐标 → 3D世界坐标
+const wx=(x)=>(x-MW/2)/DIV, wz=(y)=>(y-MH/2)/DIV;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x9ec6e6);
+scene.fog=new THREE.Fog(0x9ec6e6, 35, 95);
+
+const camera=new THREE.PerspectiveCamera(72, innerWidth/innerHeight, 0.1, 300);
+camera.position.set(0, 1.7, wz(532));
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.domElement.id='c';
+document.body.appendChild(renderer.domElement);
+
+// ===== 灯光 + 影子 =====
+const sun=new THREE.DirectionalLight(0xfff1d8, 2.6);
+sun.position.set(34, 52, 22);
+sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near=1; sun.shadow.camera.far=160;
+sun.shadow.camera.left=-48; sun.shadow.camera.right=48;
+sun.shadow.camera.top=42; sun.shadow.camera.bottom=-42;
+sun.shadow.bias=-0.0004;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbcd6ef, 0x6b5236, 0.7));
+scene.add(new THREE.AmbientLight(0xffffff, 0.18));
+
+// ===== 地面（接收影子）=====
+const ground=new THREE.Mesh(
+  new THREE.PlaneGeometry(MW/DIV+6, MH/DIV+6),
+  new THREE.MeshStandardMaterial({color:0xd8c290, roughness:1})
+);
+ground.rotation.x=-Math.PI/2; ground.receiveShadow=true;
+scene.add(ground);
+
+// ===== 方块（房子/箱子/屏障）=====
+const MAT={
+  house:  new THREE.MeshStandardMaterial({color:0xcbac74, roughness:0.95}),
+  crate:  new THREE.MeshStandardMaterial({color:0x9a6b37, roughness:0.85}),
+  barrier:new THREE.MeshStandardMaterial({color:0x5aa6dd, roughness:0.4, transparent:true, opacity:0.6}),
+  wall:   new THREE.MeshStandardMaterial({color:0x8a6a45, roughness:1}),
+};
+const colliders=[];
+function addBox(cx,cz,w,d,h,mat){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+  m.position.set(cx, h/2, cz); m.castShadow=true; m.receiveShadow=true;
+  scene.add(m);
+  colliders.push({minx:cx-w/2,maxx:cx+w/2,minz:cz-d/2,maxz:cz+d/2});
+}
+for(const it of MAP){
+  if(HGT[it.type]!==undefined && (it.type==='house'||it.type==='crate'||it.type==='barrier')){
+    addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, HGT[it.type], MAT[it.type]);
+  }
+}
+// 四面围墙
+const MWW=MW/DIV, MHH=MH/DIV;
+addBox(0, -MHH/2, MWW, 0.6, HGT.wall, MAT.wall);
+addBox(0,  MHH/2, MWW, 0.6, HGT.wall, MAT.wall);
+addBox(-MWW/2, 0, 0.6, MHH, HGT.wall, MAT.wall);
+addBox( MWW/2, 0, 0.6, MHH, HGT.wall, MAT.wall);
+
+// ===== A/B 点地面标记 + 漂浮字母 =====
+function siteMarker(it){
+  const mk=new THREE.Mesh(
+    new THREE.PlaneGeometry(it.w/DIV, it.h/DIV),
+    new THREE.MeshBasicMaterial({color:0xff4655, transparent:true, opacity:0.22})
+  );
+  mk.rotation.x=-Math.PI/2; mk.position.set(wx(it.x+it.w/2), 0.03, wz(it.y+it.h/2));
+  scene.add(mk);
+  // 字母牌
+  const cn=document.createElement('canvas'); cn.width=cn.height=128;
+  const cx2=cn.getContext('2d');
+  cx2.fillStyle='#ff4655'; cx2.font='bold 96px sans-serif';
+  cx2.textAlign='center'; cx2.textBaseline='middle'; cx2.fillText(it.type,64,68);
+  const tex=new THREE.CanvasTexture(cn);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true}));
+  sp.position.set(wx(it.x+it.w/2), 2.4, wz(it.y+it.h/2)); sp.scale.set(2,2,2);
+  scene.add(sp);
+}
+for(const it of MAP){ if(it.type==='A'||it.type==='B') siteMarker(it); }
+
+// 出生点地面色块
+function spawnPad(it,color){
+  const p=new THREE.Mesh(new THREE.PlaneGeometry(it.w/DIV,it.h/DIV),
+    new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.25}));
+  p.rotation.x=-Math.PI/2; p.position.set(wx(it.x+it.w/2),0.02,wz(it.y+it.h/2));
+  scene.add(p);
+}
+for(const it of MAP){
+  if(it.type==='tspawn') spawnPad(it,0xff4655);
+  if(it.type==='ctspawn') spawnPad(it,0x5ab0d0);
+}
+
+// ===== 第一人称控制 =====
+const controls=new PointerLockControls(camera, renderer.domElement);
+const lock=document.getElementById('lock');
+lock.addEventListener('click',()=>controls.lock());
+controls.addEventListener('lock',()=>lock.style.display='none');
+controls.addEventListener('unlock',()=>lock.style.display='flex');
+scene.add(controls.getObject());
+
+const keys={};
+addEventListener('keydown',e=>keys[e.code]=true);
+addEventListener('keyup',e=>keys[e.code]=false);
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+const R=0.45;
+function blocked(x,z){
+  if(x<-MWW/2+R||x>MWW/2-R||z<-MHH/2+R||z>MHH/2-R) return true;
+  for(const b of colliders){
+    if(x>b.minx-R&&x<b.maxx+R&&z>b.minz-R&&z<b.maxz+R) return true;
+  }
+  return false;
+}
+
+const clock=new THREE.Clock();
+const fwd=new THREE.Vector3();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.05);
+  if(controls.isLocked){
+    camera.getWorldDirection(fwd); fwd.y=0; fwd.normalize();
+    const right=new THREE.Vector3(-fwd.z,0,fwd.x);
+    const mv=new THREE.Vector3();
+    if(keys.KeyW) mv.add(fwd);
+    if(keys.KeyS) mv.sub(fwd);
+    if(keys.KeyD) mv.add(right);
+    if(keys.KeyA) mv.sub(right);
+    if(mv.lengthSq()>0){
+      mv.normalize().multiplyScalar(5.2*dt);
+      const o=controls.getObject();
+      if(!blocked(o.position.x+mv.x, o.position.z)) o.position.x+=mv.x;
+      if(!blocked(o.position.x, o.position.z+mv.z)) o.position.z+=mv.z;
+    }
+  }
+  renderer.render(scene,camera);
+}
+animate();
+
+// 3D 引擎没加载出来（没网）时提示
+setTimeout(()=>{ if(!window.THREE_OK){} },1);
+window.THREE_OK=true;
+</script>
+<script>
+// 若模块脚本因离线没跑起来，3秒后显示提示
+setTimeout(function(){ if(!window.THREE_OK){ document.getElementById('err').style.display='flex'; } },3000);
+</script>
+</body>
+</html>
