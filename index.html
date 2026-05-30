@@ -3,38 +3,128 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CS2.5 · 我的游戏</title>
+<title>CS2.5 · 主菜单</title>
 <style>
-  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    background:linear-gradient(160deg,#2b2b33,#3a3a48);color:#eee;font-family:"Microsoft YaHei",sans-serif;}
-  h1{font-size:40px;margin:6px;text-shadow:0 3px 12px #0008;}
-  .sub{color:#ffd479;margin-bottom:30px;}
-  .menu{display:flex;flex-wrap:wrap;gap:18px;justify-content:center;}
-  a.card{display:block;width:260px;padding:24px;border-radius:16px;text-decoration:none;color:#fff;
-    background:#4a90d9;box-shadow:0 8px 24px #0006;transition:transform .12s;text-align:center;}
-  a.card:hover{transform:translateY(-4px);filter:brightness(1.08);}
-  a.card.green{background:#42b765;}
-  .big{font-size:46px;}
-  .t{font-size:20px;font-weight:bold;margin-top:8px;}
-  .d{font-size:14px;opacity:.9;margin-top:6px;}
-  .foot{margin-top:34px;color:#888;font-size:13px;}
+  :root{ --bg:#0f1923; --bg2:#1a2731; --red:#ff4655; --cream:#ece8e1; --dim:#7a8b96; }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;overflow:hidden;}
+  body{
+    background:radial-gradient(120% 120% at 80% 10%, #1c2c38 0%, var(--bg) 55%, #0a1118 100%);
+    color:var(--cream); font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+  }
+  #bg{position:fixed;inset:0;z-index:0;}
+  .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    box-shadow:inset 0 0 240px 40px rgba(0,0,0,.7);}
+  .scan{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.06;
+    background:repeating-linear-gradient(0deg,#fff 0 1px,transparent 1px 3px);}
+  .frame{position:relative;z-index:2;height:100vh;display:flex;flex-direction:column;
+    padding:34px 48px;}
+  .brand{display:flex;align-items:center;gap:10px;letter-spacing:3px;font-size:14px;color:var(--dim);}
+  .brand .dot{width:11px;height:11px;background:var(--red);transform:rotate(45deg);
+    box-shadow:0 0 14px var(--red);}
+  main{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:560px;}
+  .tag{color:var(--red);letter-spacing:6px;font-size:14px;font-weight:bold;margin-bottom:6px;
+    opacity:0;animation:up .6s .1s forwards;}
+  .logo{font-size:clamp(64px,12vw,128px);font-weight:900;line-height:.92;letter-spacing:2px;
+    margin:0 0 4px;opacity:0;animation:up .6s .2s forwards;
+    background:linear-gradient(180deg,#fff,#c9d4dc);-webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 6px 40px rgba(255,70,85,.25);}
+  .logo b{color:var(--red);-webkit-text-fill-color:var(--red);text-shadow:0 0 30px rgba(255,70,85,.6);}
+  .desc{color:var(--dim);letter-spacing:2px;margin:0 0 34px;font-size:17px;
+    opacity:0;animation:up .6s .3s forwards;}
+  .menu{display:flex;flex-direction:column;gap:14px;}
+  .btn{position:relative;display:flex;align-items:center;gap:16px;cursor:pointer;border:none;
+    background:rgba(236,232,225,.06);color:var(--cream);font-family:inherit;
+    padding:16px 22px;font-size:19px;letter-spacing:2px;text-align:left;
+    clip-path:polygon(0 0,100% 0,100% 100%,18px 100%,0 calc(100% - 18px));
+    transition:background .18s,transform .18s,color .18s; opacity:0;animation:up .5s forwards;}
+  .btn:nth-child(1){animation-delay:.40s;} .btn:nth-child(2){animation-delay:.48s;}
+  .btn:nth-child(3){animation-delay:.56s;} .btn:nth-child(4){animation-delay:.64s;}
+  .btn .bar{width:4px;height:22px;background:var(--dim);transition:.18s;}
+  .btn .ico{font-size:22px;width:26px;text-align:center;}
+  .btn:hover{background:var(--red);color:#fff;transform:translateX(10px);}
+  .btn:hover .bar{background:#fff;height:30px;box-shadow:0 0 14px #fff;}
+  .btn.play{background:rgba(255,70,85,.16);}
+  .btn.play .bar{background:var(--red);box-shadow:0 0 12px var(--red);}
+  footer{display:flex;justify-content:space-between;color:var(--dim);font-size:13px;letter-spacing:1px;
+    opacity:0;animation:up .6s .7s forwards;}
+  @keyframes up{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:none;}}
+  /* 提示气泡 */
+  #toast{position:fixed;z-index:5;left:50%;bottom:44px;transform:translateX(-50%) translateY(20px);
+    background:var(--red);color:#fff;padding:12px 22px;border-radius:6px;font-size:16px;letter-spacing:1px;
+    opacity:0;pointer-events:none;transition:.25s;box-shadow:0 8px 24px rgba(255,70,85,.4);}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
-  <h1>🏜️ CS2.5</h1>
-  <div class="sub">我自己做的 3D 射击游戏！</div>
-  <div class="menu">
-    <a class="card green" href="走进沙漠小镇.html">
-      <div class="big">🎮</div>
-      <div class="t">走进沙漠小镇</div>
-      <div class="d">第一人称，用 WASD 走、鼠标看</div>
-    </a>
-    <a class="card" href="沙漠小镇地图.html">
-      <div class="big">🗺️</div>
-      <div class="t">地图编辑器</div>
-      <div class="d">自己拖动、改地图、加东西</div>
-    </a>
+  <canvas id="bg"></canvas>
+  <div class="scan"></div>
+  <div class="vignette"></div>
+
+  <div class="frame">
+    <div class="brand"><span class="dot"></span> CS2.5 &nbsp;TACTICAL SHOOTER</div>
+
+    <main>
+      <div class="tag">第一人称战术射击</div>
+      <h1 class="logo">CS<b>2.5</b></h1>
+      <p class="desc">沙漠小镇　·　安装尖刺　·　守住包点</p>
+
+      <div class="menu">
+        <button class="btn play" onclick="pick('开始游戏')"><span class="bar"></span><span class="ico">🎮</span>开始游戏</button>
+        <button class="btn" onclick="pick('地图编辑器')"><span class="bar"></span><span class="ico">🗺️</span>地图编辑器</button>
+        <button class="btn" onclick="pick('设置')"><span class="bar"></span><span class="ico">⚙️</span>设置</button>
+        <button class="btn" onclick="pick('关于')"><span class="bar"></span><span class="ico">ℹ️</span>关于</button>
+      </div>
+    </main>
+
+    <footer>
+      <span>作者：Nornttyy</span>
+      <span>版本 v0.1 · 用 Claude Code 一起做</span>
+    </footer>
   </div>
-  <div class="foot">作者：Nornttyy　·　用 Claude Code 一起做的</div>
+
+  <div id="toast"></div>
+
+<script>
+// ===== 背景：飘动的沙尘粒子 =====
+const cv=document.getElementById('bg'), ctx=cv.getContext('2d');
+let W,H,parts=[];
+function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+addEventListener('resize',resize); resize();
+// 用索引制造不同的初始位置/速度（不用随机数）
+for(let i=0;i<70;i++){
+  parts.push({
+    x:(i*97)%1+0, y:(i*53)%1+0,
+    s:0.4+ (i%5)*0.25,
+    vx:0.02+(i%7)*0.006, vy:-0.05-(i%4)*0.02,
+    a:0.15+(i%6)*0.06
+  });
+}
+function frame(){
+  ctx.clearRect(0,0,W,H);
+  // 角落红光
+  const g=ctx.createRadialGradient(W*0.82,H*0.12,0,W*0.82,H*0.12,W*0.5);
+  g.addColorStop(0,'rgba(255,70,85,0.10)'); g.addColorStop(1,'rgba(255,70,85,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // 粒子
+  for(const p of parts){
+    p.x+=p.vx/W; p.y+=p.vy/H;
+    if(p.y<-0.02){p.y=1.02;} if(p.x>1.02){p.x=-0.02;}
+    ctx.fillStyle='rgba(236,232,225,'+p.a+')';
+    ctx.beginPath(); ctx.arc(p.x*W,p.y*H,p.s,0,7); ctx.fill();
+  }
+  requestAnimationFrame(frame);
+}
+frame();
+
+// ===== 菜单点击（页面还没做好，先用提示）=====
+const toast=document.getElementById('toast');
+let tt=null;
+function pick(name){
+  toast.textContent='【'+name+'】马上就来 🚧';
+  toast.classList.add('show');
+  clearTimeout(tt); tt=setTimeout(()=>toast.classList.remove('show'),1800);
+}
+</script>
 </body>
 </html>
