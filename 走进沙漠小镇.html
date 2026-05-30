@@ -27,6 +27,9 @@
     color:#fff;background:rgba(255,70,85,.9);padding:11px 20px;border-radius:8px;font-size:17px;
     letter-spacing:1px;box-shadow:0 6px 20px rgba(255,70,85,.4);animation:pulse 1.4s infinite;}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  #timer{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:3;
+    color:#ece8e1;font-size:24px;font-weight:bold;letter-spacing:2px;
+    background:rgba(15,25,35,.55);padding:6px 18px;border-radius:8px;}
   #err{position:fixed;inset:0;z-index:9;display:none;align-items:center;justify-content:center;text-align:center;
     background:#0f1923;color:#ff4655;font-size:18px;padding:30px;}
 </style>
@@ -34,6 +37,7 @@
 <body>
   <div id="cross"></div>
   <div id="hint">W A S D 移动　·　方向键 转视角　·　空格 跳　·　Esc 暂停</div>
+  <div id="timer">准备时间 15</div>
   <div id="clickhint">点击画面 → 用鼠标转视角</div>
   <div id="lock" style="display:none">
     <div id="pauseBox">
@@ -140,12 +144,15 @@ const MAT={
 function houseMat(hh){ return hh>=7 ? MAT.tower : (hh<=1.6 ? MAT.lowwall : MAT.house); }
 const colliders=[];
 const ramps=[];
+const barriers=[];
 function addBox(cx,cz,w,d,h,mat,roty){
   roty=roty||0;
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
   m.position.set(cx, h/2, cz); m.rotation.y=roty; m.castShadow=true; m.receiveShadow=true;
   scene.add(m);
-  colliders.push({cx, cz, hw:w/2, hd:d/2, rot:roty, top:h});
+  const col={cx, cz, hw:w/2, hd:d/2, rot:roty, top:h};
+  colliders.push(col);
+  return {mesh:m, col};
 }
 // 圆塔（中央地标）
 function addTower(cx,cz,radius,h,mat){
@@ -196,7 +203,7 @@ for(const it of MAP){
   }else if(it.type==='crate'){
     addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, HGT.crate, MAT.crate, roty);
   }else if(it.type==='barrier'){
-    addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, HGT.barrier, MAT.barrier, roty);
+    barriers.push(addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, HGT.barrier, MAT.barrier, roty));
   }else if(it.type==='ramp'){
     addRamp(it);
   }else if(it.type==='palm'){
@@ -292,10 +299,22 @@ function supportAt(x,z,ft){
 
 const clock=new THREE.Clock();
 const fwd=new THREE.Vector3();
+let roundTime=0, barriersGone=false;
+const timerEl=document.getElementById('timer');
+function updateTimer(){
+  if(!barriersGone && roundTime>=15){
+    for(const b of barriers){ scene.remove(b.mesh); const i=colliders.indexOf(b.col); if(i>=0) colliders.splice(i,1); }
+    barriersGone=true;
+  }
+  if(roundTime<15){ timerEl.textContent='准备时间 '+Math.ceil(15-roundTime); }
+  else if(roundTime<17.5){ timerEl.textContent='出击！'; timerEl.style.color='#ff4655'; }
+  else { timerEl.style.display='none'; }
+}
 function animate(){
   requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),0.05);
   if(!paused){
+    roundTime+=dt;
     const o=controls.getObject();
     // 方向键转视角（不用点鼠标也能看）
     const LOOK=2.0;
@@ -330,6 +349,7 @@ function animate(){
     }
     o.position.y=feet+EYE;
   }
+  updateTimer();
   renderer.render(scene,camera);
 }
 animate();
