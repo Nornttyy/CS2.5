@@ -30,9 +30,8 @@
 <body>
   <div id="cross"></div>
   <div id="hint">W A S D 移动　·　鼠标 转头看　·　Esc 暂停</div>
-  <div id="lock">
-    <div id="startBox"><p>点击屏幕开始</p></div>
-    <div id="pauseBox" style="display:none">
+  <div id="lock" style="display:none">
+    <div id="pauseBox">
       <h2>已暂停</h2>
       <button class="mbtn" id="resumeBtn">继续游戏</button>
       <button class="mbtn" id="menuBtn">返回主菜单</button>
@@ -173,14 +172,13 @@ for(const it of MAP){
 // ===== 第一人称控制 =====
 const controls=new PointerLockControls(camera, renderer.domElement);
 const lock=document.getElementById('lock');
-const startBox=document.getElementById('startBox'), pauseBox=document.getElementById('pauseBox');
-let started=false;
+let paused=false;
+renderer.domElement.addEventListener('click',()=>controls.lock());
 lock.addEventListener('click',()=>controls.lock());
 document.getElementById('resumeBtn').addEventListener('click',e=>{e.stopPropagation();controls.lock();});
 document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();location.href='index.html';});
-controls.addEventListener('lock',()=>{ started=true; lock.style.display='none'; });
-controls.addEventListener('unlock',()=>{ lock.style.display='flex';
-  startBox.style.display=started?'none':'block'; pauseBox.style.display=started?'block':'none'; });
+controls.addEventListener('lock',()=>{ paused=false; lock.style.display='none'; });
+controls.addEventListener('unlock',()=>{ paused=true; lock.style.display='flex'; });
 scene.add(controls.getObject());
 
 const keys={};
@@ -209,7 +207,7 @@ const fwd=new THREE.Vector3();
 function animate(){
   requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),0.05);
-  if(controls.isLocked){
+  if(!paused){
     camera.getWorldDirection(fwd); fwd.y=0; fwd.normalize();
     const right=new THREE.Vector3(-fwd.z,0,fwd.x);
     const mv=new THREE.Vector3();
