@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>沙漠小镇 · 地图编辑器</title>
+<style>
+  body{ margin:0; background:#2b2b33; color:#eee;
+    font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+    display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1{ margin:6px 0; font-size:24px; }
+  .tip{ color:#ffd479; margin-bottom:12px; text-align:center; max-width:760px; line-height:1.5; }
+  .bar{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width:780px; margin-bottom:12px; }
+  button{ font-size:15px; padding:9px 12px; border:none; border-radius:9px; cursor:pointer;
+    background:#4a90d9; color:#fff; font-family:inherit; }
+  button:hover{ filter:brightness(1.1); }
+  button.alt{ background:#5a5a66; }
+  button.warn{ background:#d9534f; }
+  button.go{ background:#42b765; font-weight:bold; }
+  button.route{ background:#b98e4f; }
+  canvas{ background:#1d1d22; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.5); touch-action:none; }
+  .exp{ margin-top:14px; width:760px; max-width:95vw; }
+  textarea{ width:100%; height:90px; border-radius:8px; border:1px solid #555; padding:8px;
+    font-family:monospace; font-size:13px; background:#15151a; color:#9fe; box-sizing:border-box; }
+  .row{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .hint{ color:#aaa; font-size:13px; margin-top:6px; }
+</style>
+</head>
+<body>
+  <h1>🏜️ 沙漠小镇 · 地图编辑器</h1>
+  <div class="tip">
+    🖱️ <b>拖方块</b>移动，<b>黄点</b>改大小，<b>绿点</b>转方向，<b>路线小圆点</b>改路！<br>
+    改好后点绿色 <b>【导出地图代码】</b>，把那串文字<b>发给我</b>，我就能看到你的地图啦 😄
+  </div>
+
+  <div class="bar">
+    <button onclick="addItem('house')">➕🏠 加房子</button>
+    <button onclick="addItem('crate')">➕📦 加箱子</button>
+    <button onclick="addItem('A')">💣 放 A 点</button>
+    <button onclick="addItem('B')">💣 放 B 点</button>
+    <button onclick="addItem('tspawn')">🥷 恐怖分子出生</button>
+    <button onclick="addItem('ctspawn')">👮 警察出生</button>
+    <button onclick="addItem('barrier')">🚧 加开局屏障</button>
+    <button class="route" onclick="addRoute()">➕🛣️ 加路线</button>
+    <button class="warn" onclick="delSelected()">🗑️ 删除选中</button>
+    <button class="alt" onclick="resetMap()">↩️ 恢复原样</button>
+  </div>
+
+  <canvas id="cv" width="760" height="580"></canvas>
+
+  <div class="exp">
+    <div class="row">
+      <button class="go" onclick="doExport()">💾 导出地图代码（发给我）</button>
+      <button class="alt" onclick="doImport()">📥 读取代码（粘贴后点这）</button>
+      <button class="alt" onclick="copyCode()">📋 复制</button>
+    </div>
+    <textarea id="code" placeholder="点【导出地图代码】后，这里会出现一串文字，复制它发给我～"></textarea>
+    <div class="hint">提示：选中后按 Delete 键也能删。方块选中后拖右下角黄点能改大小；路线拖两端圆点改方向、拖中间整条移动。</div>
+  </div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height, BORDER = 12;
+
+const TYPES = {
+  house:   {fill:'#c9a86a', stroke:'#8a6a35', label:'房子',  w:90,  h:60,  font:15},
+  crate:   {fill:'#a9763e', stroke:'#724d24', label:'📦',    w:30,  h:30,  font:18},
+  A:       {fill:'rgba(220,60,60,.22)', stroke:'#cc3333', label:'A 💣', w:160, h:130, font:34, dash:true, big:true},
+  B:       {fill:'rgba(220,60,60,.22)', stroke:'#cc3333', label:'B 💣', w:160, h:130, font:34, dash:true, big:true},
+  tspawn:  {fill:'#f0a35a', stroke:'#b06a23', label:'🥷 恐怖分子', w:200, h:60, font:18},
+  ctspawn: {fill:'#6fb4e0', stroke:'#2c6e96', label:'👮 警察',     w:200, h:60, font:18},
+  barrier: {fill:'rgba(90,180,255,.30)', stroke:'#3aa0e0', label:'🚧 开局屏障', w:200, h:22, font:14, dash:true},
+};
+
+function defaultItems(){
+  return [
+    // 路线（先画，垫在底下）
+    {type:'route', x1:380, y1:90,  x2:120, y2:250},
+    {type:'route', x1:380, y1:90,  x2:640, y2:250},
+    {type:'route', x1:380, y1:90,  x2:380, y2:500},
+    {type:'route', x1:380, y1:500, x2:120, y2:320},
+    {type:'route', x1:380, y1:500, x2:640, y2:320},
+    // 方块
+    {type:'tspawn',  x:280, y:20,  w:200, h:60},
+    {type:'ctspawn', x:280, y:500, w:200, h:60},
+    {type:'barrier', x:280, y:92,  w:200, h:22},
+    {type:'barrier', x:280, y:466, w:200, h:22},
+    {type:'A', x:40,  y:220, w:160, h:130},
+    {type:'B', x:560, y:220, w:160, h:130},
+    {type:'house', x:330, y:250, w:100, h:80},
+    {type:'house', x:220, y:130, w:90, h:55},
+    {type:'house', x:450, y:130, w:90, h:55},
+    {type:'house', x:220, y:395, w:90, h:55},
+    {type:'house', x:450, y:395, w:90, h:55},
+    {type:'crate', x:175, y:300, w:30, h:30},
+    {type:'crate', x:215, y:325, w:30, h:30},
+    {type:'crate', x:555, y:300, w:30, h:30},
+    {type:'crate', x:595, y:325, w:30, h:30},
+  ];
+}
+
+let items = defaultItems();
+let selected = null;
+let drag = null;
+const EP = 12; // 端点点击半径
+
+function addItem(type){
+  const t = TYPES[type];
+  const it = {type, x: W/2 - t.w/2, y: H/2 - t.h/2, w:t.w, h:t.h};
+  items.push(it); selected = it; draw();
+}
+function addRoute(){
+  const it = {type:'route', x1:W/2-90, y1:H/2, x2:W/2+90, y2:H/2};
+  items.push(it); selected = it; draw();
+}
+function delSelected(){
+  if(selected){ items = items.filter(i=>i!==selected); selected=null; draw(); }
+}
+function resetMap(){ items = defaultItems(); selected=null; draw(); }
+
+function draw(){
+  ctx.fillStyle = '#e3c98e'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle = 'rgba(140,110,60,.18)'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke(); }
+  for(let y=0;y<H;y+=40){ ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); }
+  ctx.strokeStyle = '#9c7b45'; ctx.lineWidth = BORDER;
+  ctx.strokeRect(BORDER/2, BORDER/2, W-BORDER, H-BORDER);
+
+  // 先画路线
+  for(const it of items){
+    if(it.type!=='route') continue;
+    const sel = it===selected;
+    ctx.strokeStyle = sel ? '#ffe14d' : '#b98e4f';
+    ctx.lineWidth = sel ? 5 : 4; ctx.setLineDash([12,8]);
+    ctx.beginPath(); ctx.moveTo(it.x1,it.y1); ctx.lineTo(it.x2,it.y2); ctx.stroke();
+    ctx.setLineDash([]);
+    // 端点小圆
+    for(const [px,py] of [[it.x1,it.y1],[it.x2,it.y2]]){
+      ctx.beginPath(); ctx.arc(px,py,7,0,Math.PI*2);
+      ctx.fillStyle = sel ? '#ffe14d' : '#8a5a20'; ctx.fill();
+      ctx.lineWidth=2; ctx.strokeStyle='#5a3a14'; ctx.stroke();
+    }
+  }
+  // 再画方块（支持旋转）
+  for(const it of items){
+    if(it.type==='route') continue;
+    const t = TYPES[it.type];
+    const cx=it.x+it.w/2, cy=it.y+it.h/2, rot=it.rot||0;
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(rot);
+    ctx.fillStyle = t.fill; ctx.strokeStyle = t.stroke;
+    ctx.lineWidth = t.big ? 4 : 3;
+    if(t.dash) ctx.setLineDash([12,7]); else ctx.setLineDash([]);
+    roundRect(-it.w/2, -it.h/2, it.w, it.h, 8); ctx.fill(); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = t.big ? '#b32424' : '#4a3010';
+    ctx.font = (t.big?'bold ':'') + t.font + 'px "Microsoft YaHei",sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(t.label, 0, 0);
+    if(it===selected){
+      ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 3; ctx.setLineDash([6,4]);
+      ctx.strokeRect(-it.w/2-4, -it.h/2-4, it.w+8, it.h+8); ctx.setLineDash([]);
+      // 右下角调大小黄点
+      ctx.fillStyle='#ffe14d'; ctx.strokeStyle='#5a3a14'; ctx.lineWidth=2;
+      ctx.fillRect(it.w/2-7, it.h/2-7, 14, 14); ctx.strokeRect(it.w/2-7, it.h/2-7, 14, 14);
+      // 上方旋转绿把手
+      ctx.strokeStyle='#42b765'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(0,-it.h/2); ctx.lineTo(0,-it.h/2-24); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0,-it.h/2-24,8,0,Math.PI*2);
+      ctx.fillStyle='#42b765'; ctx.fill(); ctx.strokeStyle='#1f6b38'; ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+function posFromEvent(e){
+  const r = cv.getBoundingClientRect();
+  const cx = (e.touches? e.touches[0].clientX : e.clientX) - r.left;
+  const cy = (e.touches? e.touches[0].clientY : e.clientY) - r.top;
+  return {x: cx * (W/r.width), y: cy * (H/r.height)};
+}
+function dist(ax,ay,bx,by){ return Math.hypot(ax-bx,ay-by); }
+// 把世界坐标 p 转成「以(cx,cy)为中心、转了rot」的本地坐标
+function toLocal(cx,cy,rot,p){
+  const dx=p.x-cx, dy=p.y-cy, c=Math.cos(-rot), s=Math.sin(-rot);
+  return {x:dx*c - dy*s, y:dx*s + dy*c};
+}
+function distToSeg(p, x1,y1,x2,y2){
+  const dx=x2-x1, dy=y2-y1; const l2=dx*dx+dy*dy;
+  if(l2===0) return dist(p.x,p.y,x1,y1);
+  let t=((p.x-x1)*dx+(p.y-y1)*dy)/l2; t=Math.max(0,Math.min(1,t));
+  return dist(p.x,p.y, x1+t*dx, y1+t*dy);
+}
+function clampX(v){ return Math.max(BORDER, Math.min(W-BORDER, v)); }
+function clampY(v){ return Math.max(BORDER, Math.min(H-BORDER, v)); }
+
+function onDown(e){
+  e.preventDefault();
+  const p = posFromEvent(e);
+  // 0) 已选中方块的把手（旋转绿点 / 调大小黄点）优先
+  if(selected && selected.type!=='route'){
+    const cx=selected.x+selected.w/2, cy=selected.y+selected.h/2, rot=selected.rot||0;
+    const L=toLocal(cx,cy,rot,p);
+    if(dist(L.x,L.y, 0, -selected.h/2-24)<=12){ drag={kind:'rotate', cx, cy}; return; }
+    if(dist(L.x,L.y, selected.w/2, selected.h/2)<=14){ drag={kind:'resize', cx, cy}; return; }
+  }
+  // 1) 路线端点优先
+  for(let i=items.length-1;i>=0;i--){
+    const it=items[i]; if(it.type!=='route') continue;
+    if(dist(p.x,p.y,it.x1,it.y1)<=EP){ selected=it; drag={kind:'p1'}; draw(); return; }
+    if(dist(p.x,p.y,it.x2,it.y2)<=EP){ selected=it; drag={kind:'p2'}; draw(); return; }
+  }
+  // 2) 方块（考虑旋转）
+  for(let i=items.length-1;i>=0;i--){
+    const it=items[i]; if(it.type==='route') continue;
+    const cx=it.x+it.w/2, cy=it.y+it.h/2, rot=it.rot||0;
+    const L=toLocal(cx,cy,rot,p);
+    if(Math.abs(L.x)<=it.w/2 && Math.abs(L.y)<=it.h/2){
+      selected=it; drag={kind:'box', dx:p.x-it.x, dy:p.y-it.y}; draw(); return;
+    }
+  }
+  // 3) 路线整条
+  for(let i=items.length-1;i>=0;i--){
+    const it=items[i]; if(it.type!=='route') continue;
+    if(distToSeg(p, it.x1,it.y1,it.x2,it.y2)<=8){
+      selected=it; drag={kind:'routemove', lx:p.x, ly:p.y}; draw(); return;
+    }
+  }
+  selected=null; drag=null; draw();
+}
+function onMove(e){
+  if(!drag||!selected) return;
+  e.preventDefault();
+  const p = posFromEvent(e);
+  if(drag.kind==='box'){
+    selected.x = Math.round(Math.max(BORDER, Math.min(W-BORDER-selected.w, p.x-drag.dx)));
+    selected.y = Math.round(Math.max(BORDER, Math.min(H-BORDER-selected.h, p.y-drag.dy)));
+  } else if(drag.kind==='resize'){
+    const rot=selected.rot||0; const L=toLocal(drag.cx,drag.cy,rot,p);
+    selected.w = Math.round(Math.max(24, Math.abs(L.x)*2));
+    selected.h = Math.round(Math.max(24, Math.abs(L.y)*2));
+    selected.x = Math.round(drag.cx - selected.w/2);
+    selected.y = Math.round(drag.cy - selected.h/2);
+  } else if(drag.kind==='rotate'){
+    selected.rot = Math.atan2(p.y-drag.cy, p.x-drag.cx) + Math.PI/2;
+  } else if(drag.kind==='p1'){
+    selected.x1=Math.round(clampX(p.x)); selected.y1=Math.round(clampY(p.y));
+  } else if(drag.kind==='p2'){
+    selected.x2=Math.round(clampX(p.x)); selected.y2=Math.round(clampY(p.y));
+  } else if(drag.kind==='routemove'){
+    const ddx=p.x-drag.lx, ddy=p.y-drag.ly; drag.lx=p.x; drag.ly=p.y;
+    selected.x1=Math.round(clampX(selected.x1+ddx)); selected.y1=Math.round(clampY(selected.y1+ddy));
+    selected.x2=Math.round(clampX(selected.x2+ddx)); selected.y2=Math.round(clampY(selected.y2+ddy));
+  }
+  draw();
+}
+function onUp(){ drag=null; }
+
+cv.addEventListener('mousedown', onDown);
+window.addEventListener('mousemove', onMove);
+window.addEventListener('mouseup', onUp);
+cv.addEventListener('touchstart', onDown, {passive:false});
+cv.addEventListener('touchmove', onMove, {passive:false});
+cv.addEventListener('touchend', onUp);
+window.addEventListener('keydown', e=>{ if(e.key==='Delete'||e.key==='Backspace') delSelected(); });
+
+function doExport(){ document.getElementById('code').value = '沙漠小镇地图:' + JSON.stringify(items); }
+function doImport(){
+  try{
+    let v = document.getElementById('code').value.trim().replace(/^沙漠小镇地图:/,'');
+    const arr = JSON.parse(v);
+    if(Array.isArray(arr)){ items=arr; selected=null; draw(); }
+  }catch(err){ alert('代码读不出来，检查一下有没有复制完整～'); }
+}
+function copyCode(){
+  const ta=document.getElementById('code'); if(!ta.value) doExport();
+  ta.select(); navigator.clipboard && navigator.clipboard.writeText(ta.value);
+}
+
+draw();
+</script>
+</body>
+</html>
