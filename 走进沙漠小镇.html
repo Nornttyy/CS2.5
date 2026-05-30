@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>走进沙漠小镇 · 第一人称</title>
+<style>
+  body{margin:0;background:#111;color:#eee;font-family:"Microsoft YaHei",sans-serif;
+    display:flex;flex-direction:column;align-items:center;padding:12px;}
+  h1{font-size:20px;margin:6px;}
+  .wrap{position:relative;}
+  canvas{display:block;background:#000;border-radius:10px;cursor:pointer;}
+  #mini{position:absolute;right:8px;top:8px;border:2px solid #0006;border-radius:6px;}
+  .tip{color:#ffd479;margin:10px;text-align:center;line-height:1.6;}
+  .lock{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.55);border-radius:10px;font-size:22px;color:#fff;cursor:pointer;text-align:center;}
+</style>
+</head>
+<body>
+  <h1>🏜️ 走进沙漠小镇（第一人称）</h1>
+  <div class="wrap">
+    <canvas id="view" width="640" height="400"></canvas>
+    <canvas id="mini" width="160" height="122"></canvas>
+    <div class="lock" id="lock">🖱️ 点这里开始<br><span style="font-size:15px">（点一下锁定鼠标，就能转头看了）</span></div>
+  </div>
+  <div class="tip">
+    <b>W A S D</b> 走动　·　<b>鼠标</b> 转头看　·　<b>Esc</b> 松开鼠标<br>
+    这是你设计的沙漠小镇！房子、箱子、屏障都在，右上角是小地图 🗺️
+  </div>
+
+<script>
+// ===== 你的地图（和编辑器同一份数据）=====
+const MAP = [{"type":"route","x1":380,"y1":90,"x2":120,"y2":250},{"type":"route","x1":380,"y1":90,"x2":633,"y2":233},{"type":"route","x1":380,"y1":90,"x2":380,"y2":500},{"type":"route","x1":380,"y1":500,"x2":120,"y2":320},{"type":"route","x1":380,"y1":500,"x2":640,"y2":320},{"type":"tspawn","x":280,"y":20,"w":200,"h":60},{"type":"ctspawn","x":280,"y":500,"w":200,"h":60},{"type":"barrier","x":27,"y":215,"w":200,"h":22},{"type":"barrier","x":490,"y":207,"w":200,"h":22,"rot":-0.049},{"type":"A","x":40,"y":220,"w":160,"h":130},{"type":"B","x":558,"y":219,"w":160,"h":130},{"type":"house","x":322,"y":134,"w":118,"h":278},{"type":"house","x":220,"y":130,"w":90,"h":55,"rot":-0.8},{"type":"house","x":450,"y":130,"w":90,"h":55,"rot":0.6},{"type":"house","x":198,"y":395,"w":134,"h":56,"rot":0.6},{"type":"house","x":398,"y":379,"w":227,"h":77,"rot":-0.62},{"type":"crate","x":170,"y":298,"w":30,"h":30},{"type":"crate","x":80,"y":223,"w":30,"h":30},{"type":"crate","x":581,"y":220,"w":30,"h":30},{"type":"crate","x":688,"y":268,"w":30,"h":30},{"type":"barrier","x":331,"y":424,"w":94,"h":24},{"type":"barrier","x":274,"y":101,"w":200,"h":22},{"type":"crate","x":449,"y":139,"w":30,"h":30},{"type":"crate","x":564,"y":292,"w":30,"h":30},{"type":"crate","x":324,"y":195,"w":30,"h":30},{"type":"crate","x":409,"y":195,"w":30,"h":30},{"type":"crate","x":409,"y":318,"w":30,"h":30},{"type":"crate","x":355,"y":319,"w":30,"h":30},{"type":"crate","x":357,"y":256,"w":48,"h":35}];
+
+const MW=760, MH=580;
+const H3D = {house:30, barrier:16, crate:10, wall:40};
+const COL = {house:[205,172,112], barrier:[95,180,225], crate:[168,118,62], wall:[150,118,68]};
+
+// 收集「墙」（带碰撞、能挡视线的方块）
+const boxes=[];
+for(const it of MAP){
+  if(['house','barrier','crate'].includes(it.type))
+    boxes.push({x:it.x,y:it.y,w:it.w,h:it.h, t:it.type});
+}
+// 四面围墙
+boxes.push({x:0,y:0,w:MW,h:8,t:'wall'});
+boxes.push({x:0,y:MH-8,w:MW,h:8,t:'wall'});
+boxes.push({x:0,y:0,w:8,h:MH,t:'wall'});
+boxes.push({x:MW-8,y:0,w:8,h:MH,t:'wall'});
+// 出生点 / 包点（画小地图用）
+const marks = MAP.filter(it=>['A','B','tspawn','ctspawn'].includes(it.type));
+
+const view=document.getElementById('view'), vx=view.getContext('2d');
+const mini=document.getElementById('mini'), mx=mini.getContext('2d');
+const VW=view.width, VH=view.height, HORIZON=VH/2;
+const FOV=66*Math.PI/180, FOCAL=(VW/2)/Math.tan(FOV/2), EYE=17;
+
+// 玩家从警察出生点开始，朝地图里面看
+let px=380, py=530, ang=-Math.PI/2;
+const keys={};
+let locked=false;
+
+// ===== 射线打到最近的盒子，返回距离 =====
+function castDist(ox,oy,dx,dy){
+  let best=Infinity, bt=null;
+  for(const b of boxes){
+    const ddx = Math.abs(dx)<1e-6?1e-6:dx;
+    const ddy = Math.abs(dy)<1e-6?1e-6:dy;
+    const tx1=(b.x-ox)/ddx, tx2=(b.x+b.w-ox)/ddx;
+    const ty1=(b.y-oy)/ddy, ty2=(b.y+b.h-oy)/ddy;
+    let tmin=Math.max(Math.min(tx1,tx2), Math.min(ty1,ty2));
+    let tmax=Math.min(Math.max(tx1,tx2), Math.max(ty1,ty2));
+    if(tmax>=Math.max(tmin,0) && tmin<best){ best = tmin>0?tmin:0.001; bt=b; }
+  }
+  return {d:best, b:bt};
+}
+
+function render(){
+  // 天空 + 沙地
+  vx.fillStyle='#8ec3e8'; vx.fillRect(0,0,VW,HORIZON);
+  vx.fillStyle='#d9c189'; vx.fillRect(0,HORIZON,VW,VH-HORIZON);
+  // 一列一列投射
+  for(let x=0;x<VW;x++){
+    const rayAng = ang + Math.atan2(x-VW/2, FOCAL);
+    const dx=Math.cos(rayAng), dy=Math.sin(rayAng);
+    const hit=castDist(px,py,dx,dy);
+    if(hit.d===Infinity || !hit.b) continue;
+    const perp = hit.d*Math.cos(rayAng-ang);   // 修鱼眼
+    if(perp<1) continue;
+    const Hw=H3D[hit.b.t];
+    const yBottom=HORIZON + EYE*FOCAL/perp;
+    const yTop=HORIZON - (Hw-EYE)*FOCAL/perp;
+    // 距离越远越暗
+    let sh=Math.max(0.32, Math.min(1, 1 - perp/520));
+    const c=COL[hit.b.t];
+    vx.fillStyle=`rgb(${(c[0]*sh)|0},${(c[1]*sh)|0},${(c[2]*sh)|0})`;
+    vx.fillRect(x, yTop, 1, yBottom-yTop);
+  }
+  drawMini();
+}
+
+function drawMini(){
+  const s=mini.width/MW;
+  mx.fillStyle='#e3c98e'; mx.fillRect(0,0,mini.width,mini.height);
+  // A/B/出生点
+  for(const m of marks){
+    if(m.type==='A'||m.type==='B') mx.fillStyle='rgba(220,60,60,.6)';
+    else if(m.type==='tspawn') mx.fillStyle='#f0a35a';
+    else mx.fillStyle='#6fb4e0';
+    mx.fillRect(m.x*s, m.y*s, m.w*s, m.h*s);
+  }
+  // 墙
+  mx.fillStyle='#8a6a35';
+  for(const b of boxes){ if(b.t!=='wall') mx.fillRect(b.x*s,b.y*s,b.w*s,b.h*s); }
+  // 玩家 + 朝向
+  mx.fillStyle='#1a8f3a';
+  mx.beginPath(); mx.arc(px*s,py*s,3,0,7); mx.fill();
+  mx.strokeStyle='#1a8f3a'; mx.lineWidth=2; mx.beginPath();
+  mx.moveTo(px*s,py*s); mx.lineTo((px+Math.cos(ang)*22)*s,(py+Math.sin(ang)*22)*s); mx.stroke();
+}
+
+function blocked(nx,ny){
+  if(nx<10||nx>MW-10||ny<10||ny>MH-10) return true;
+  const r=7;
+  for(const b of boxes){
+    if(nx>b.x-r && nx<b.x+b.w+r && ny>b.y-r && ny<b.y+b.h+r) return true;
+  }
+  return false;
+}
+
+function step(){
+  const spd=1.6;
+  let mvF=(keys['w']?1:0)-(keys['s']?1:0);
+  let mvS=(keys['d']?1:0)-(keys['a']?1:0);
+  if(mvF||mvS){
+    const len=Math.hypot(mvF,mvS); mvF/=len; mvS/=len;
+    const fx=Math.cos(ang), fy=Math.sin(ang);
+    const sx=Math.cos(ang+Math.PI/2), sy=Math.sin(ang+Math.PI/2);
+    let nx=px+(fx*mvF+sx*mvS)*spd;
+    let ny=py+(fy*mvF+sy*mvS)*spd;
+    if(!blocked(nx,py)) px=nx;
+    if(!blocked(px,ny)) py=ny;
+  }
+  render();
+  requestAnimationFrame(step);
+}
+
+// ===== 输入 =====
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
+view.addEventListener('click',()=>view.requestPointerLock());
+document.getElementById('lock').addEventListener('click',()=>view.requestPointerLock());
+document.addEventListener('pointerlockchange',()=>{
+  locked=(document.pointerLockElement===view);
+  document.getElementById('lock').style.display=locked?'none':'flex';
+});
+document.addEventListener('mousemove',e=>{ if(locked) ang+=e.movementX*0.003; });
+
+step();
+</script>
+</body>
+</html>
