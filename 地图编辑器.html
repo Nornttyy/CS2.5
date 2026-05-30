@@ -34,6 +34,7 @@
     <button onclick="add('lowwall')">加 矮墙</button>
     <button onclick="add('crate')">加 木箱</button>
     <button onclick="add('ramp')">加 斜坡</button>
+    <button onclick="add('palm')">加 棕榈树</button>
     <button onclick="add('barrier')">加 屏障</button>
     <button onclick="add('A')">放 A 点</button>
     <button onclick="add('B')">放 B 点</button>
@@ -74,6 +75,7 @@ const STY={
   crate:{fill:'#3c4a55',stroke:'#55636e',label:'',w:32,h:32},
   barrier:{fill:'rgba(255,70,85,.5)',stroke:'#ff4655',label:'',w:160,h:16},
   ramp:{fill:'rgba(120,170,120,.3)',stroke:'#7aa86a',label:'坡↑',w:76,h:85},
+  palm:{fill:'#3a5a32',stroke:'#6aa050',label:'树',w:30,h:30},
 };
 const HHOF={tower:9, building:3.8, lowwall:1.5};
 
@@ -98,7 +100,10 @@ function defaultItems(){
     {"type":"house","x":300,"y":175,"w":120,"h":75,"hh":2.4},{"type":"house","x":580,"y":175,"w":120,"h":75,"hh":2.4},
     {"type":"ramp","x":322,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"},{"type":"ramp","x":602,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"},
     {"type":"crate","x":130,"y":360,"w":32,"h":32},{"type":"crate","x":838,"y":360,"w":32,"h":32},
-    {"type":"crate","x":230,"y":330,"w":32,"h":32,"rot":0.4},{"type":"crate","x":738,"y":330,"w":32,"h":32,"rot":-0.4}
+    {"type":"crate","x":230,"y":330,"w":32,"h":32,"rot":0.4},{"type":"crate","x":738,"y":330,"w":32,"h":32,"rot":-0.4},
+    {"type":"palm","x":40,"y":530,"w":30,"h":30},{"type":"palm","x":930,"y":530,"w":30,"h":30},
+    {"type":"palm","x":40,"y":220,"w":30,"h":30},{"type":"palm","x":930,"y":220,"w":30,"h":30},
+    {"type":"palm","x":355,"y":195,"w":30,"h":30},{"type":"palm","x":615,"y":195,"w":30,"h":30}
   ]);
 }
 function GAME_TO_EDIT(arr){ return arr.map(it=>({...it, et:editType(it)})); }

@@ -74,7 +74,11 @@ const DEFAULT_MAP=[
   {"type":"crate","x":300,"y":205,"w":32,"h":32},{"type":"crate","x":668,"y":205,"w":32,"h":32},
   {"type":"crate","x":300,"y":525,"w":32,"h":32},{"type":"crate","x":668,"y":525,"w":32,"h":32},
   {"type":"house","x":300,"y":175,"w":120,"h":75,"hh":2.4},{"type":"house","x":580,"y":175,"w":120,"h":75,"hh":2.4},
-  {"type":"ramp","x":322,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"},{"type":"ramp","x":602,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"}
+  {"type":"ramp","x":322,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"},{"type":"ramp","x":602,"y":250,"w":76,"h":85,"lo":0,"hi":2.4,"up":"n"},
+  {"type":"palm","x":40,"y":530,"w":30,"h":30},{"type":"palm","x":930,"y":530,"w":30,"h":30},
+  {"type":"palm","x":40,"y":220,"w":30,"h":30},{"type":"palm","x":930,"y":220,"w":30,"h":30},
+  {"type":"palm","x":355,"y":195,"w":30,"h":30},{"type":"palm","x":615,"y":195,"w":30,"h":30},
+  {"type":"palm","x":355,"y":535,"w":30,"h":30},{"type":"palm","x":615,"y":535,"w":30,"h":30}
 ];
 const MW=1000, MH=760, DIV=8;
 const HGT={house:3.8, barrier:1.6, crate:1.7, wall:4.6};
@@ -195,6 +199,8 @@ for(const it of MAP){
     addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, HGT.barrier, MAT.barrier, roty);
   }else if(it.type==='ramp'){
     addRamp(it);
+  }else if(it.type==='palm'){
+    makePalm(it.x+(it.w||30)/2, it.y+(it.h||30)/2);
   }
 }
 // 四面围墙
@@ -203,9 +209,7 @@ addBox(0, -MHH/2, MWW, 0.6, HGT.wall, MAT.wall, 0);
 addBox(0,  MHH/2, MWW, 0.6, HGT.wall, MAT.wall, 0);
 addBox(-MWW/2, 0, 0.6, MHH, HGT.wall, MAT.wall, 0);
 addBox( MWW/2, 0, 0.6, MHH, HGT.wall, MAT.wall, 0);
-// 棕榈树点缀
-makePalm(55,545); makePalm(945,545); makePalm(55,235); makePalm(945,235);
-makePalm(370,210); makePalm(630,210); makePalm(370,550); makePalm(630,550);
+// 棕榈树由地图数据(type:"palm")生成，可在编辑器里添加/移动
 
 // ===== A/B 点地面标记 + 漂浮字母 =====
 function siteMarker(it){
