@@ -35,6 +35,7 @@
     <button onclick="add('crate')">加 木箱</button>
     <button onclick="add('ramp')">加 斜坡</button>
     <button onclick="add('palm')">加 棕榈树</button>
+    <button id="wallbtn" onclick="toggleWall()">画墙</button>
     <button onclick="add('barrier')">加 屏障</button>
     <button onclick="add('A')">放 A 点</button>
     <button onclick="add('B')">放 B 点</button>
@@ -116,6 +117,21 @@ function GAME_TO_EDIT(arr){ return arr.map(it=>({...it, et:editType(it)})); }
 
 let items=[];
 let selected=null, drag=null;
+let mode='select', drawWall=null;
+function toggleWall(){
+  mode = mode==='wall' ? 'select' : 'wall';
+  const b=document.getElementById('wallbtn');
+  b.classList.toggle('red', mode==='wall');
+  b.textContent = mode==='wall' ? '画墙中（点此结束）' : '画墙';
+  selected=null; draw();
+}
+function finalizeWall(){
+  const dx=drawWall.x1-drawWall.x0, dy=drawWall.y1-drawWall.y0, len=Math.hypot(dx,dy);
+  if(len<14) return;
+  const ang=Math.atan2(dy,dx), th=16, mx=(drawWall.x0+drawWall.x1)/2, my=(drawWall.y0+drawWall.y1)/2;
+  items.push({et:'building', type:'house', hh:3.8, w:Math.round(len), h:th,
+    x:Math.round(mx-len/2), y:Math.round(my-th/2), rot:ang});
+}
 
 // 打开时优先读你保存过的地图（在脚本最后调用 init()，确保所有控件已就绪）
 function init(){
@@ -169,6 +185,11 @@ function draw(){
     }
     ctx.restore();
   }
+  if(drawWall){
+    ctx.save(); ctx.strokeStyle='#ffd479'; ctx.lineWidth=16; ctx.lineCap='round'; ctx.globalAlpha=.7;
+    ctx.beginPath(); ctx.moveTo(drawWall.x0,drawWall.y0); ctx.lineTo(drawWall.x1,drawWall.y1); ctx.stroke();
+    ctx.restore();
+  }
   updateHeightUI();
 }
 function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
@@ -200,6 +221,7 @@ function clampX(v){return Math.max(BORDER,Math.min(W-BORDER,v));}
 function clampY(v){return Math.max(BORDER,Math.min(H-BORDER,v));}
 
 function onDown(e){ e.preventDefault(); const p=posFromEvent(e);
+  if(mode==='wall'){ drawWall={x0:p.x,y0:p.y,x1:p.x,y1:p.y}; return; }
   if(selected && selected.et!=='route'){
     const cx=selected.x+selected.w/2,cy=selected.y+selected.h/2,rot=selected.rot||0,L=toLocal(cx,cy,rot,p);
     if(dist(L.x,L.y,0,-selected.h/2-22)<=12){ drag={k:'rot',cx,cy}; return; }
@@ -213,7 +235,9 @@ function onDown(e){ e.preventDefault(); const p=posFromEvent(e);
     if(Math.abs(L.x)<=it.w/2&&Math.abs(L.y)<=it.h/2){ selected=it; drag={k:'move',dx:p.x-it.x,dy:p.y-it.y}; draw(); return; } }
   selected=null; drag=null; draw();
 }
-function onMove(e){ if(!drag||!selected) return; e.preventDefault(); const p=posFromEvent(e);
+function onMove(e){
+  if(drawWall){ e.preventDefault(); const q=posFromEvent(e); drawWall.x1=q.x; drawWall.y1=q.y; draw(); return; }
+  if(!drag||!selected) return; e.preventDefault(); const p=posFromEvent(e);
   if(drag.k==='move'){ selected.x=Math.round(Math.max(BORDER,Math.min(W-BORDER-selected.w,p.x-drag.dx)));
     selected.y=Math.round(Math.max(BORDER,Math.min(H-BORDER-selected.h,p.y-drag.dy))); }
   else if(drag.k==='size'){ const rot=selected.rot||0,L=toLocal(drag.cx,drag.cy,rot,p);
@@ -224,7 +248,7 @@ function onMove(e){ if(!drag||!selected) return; e.preventDefault(); const p=pos
   else if(drag.k==='p2'){ selected.x2=Math.round(clampX(p.x)); selected.y2=Math.round(clampY(p.y)); }
   draw();
 }
-function onUp(){ drag=null; }
+function onUp(){ if(drawWall){ finalizeWall(); drawWall=null; draw(); } drag=null; }
 cv.addEventListener('mousedown',onDown); window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp);
 cv.addEventListener('touchstart',onDown,{passive:false}); cv.addEventListener('touchmove',onMove,{passive:false}); cv.addEventListener('touchend',onUp);
 window.addEventListener('keydown',e=>{ if(e.key==='Delete'||e.key==='Backspace') delSel(); });
