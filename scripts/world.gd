@@ -2,10 +2,10 @@ extends Node3D
 # 沙漠小镇世界：读取 maps/desert_town.json，搭成 3D 地图
 # 2D 编辑器里的坐标(px) → 3D 世界坐标(米)：每 10 像素 = 1 米
 
-const DIV := 10.0      # 多少像素算 1 米
+const DIV := 8.0       # 多少像素算 1 米（数值越小，地图越大）
 const MAP_W := 760.0   # 2D 地图宽
 const MAP_H := 580.0   # 2D 地图高
-const HEIGHTS := {"house": 3.0, "barrier": 1.6, "crate": 1.0}
+const HEIGHTS := {"house": 3.4, "barrier": 1.6, "crate": 1.5}
 const COLORS := {
 	"house": Color(0.79, 0.66, 0.42),
 	"barrier": Color(0.35, 0.70, 0.88),
