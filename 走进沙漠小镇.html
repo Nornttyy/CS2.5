@@ -29,7 +29,7 @@
 </head>
 <body>
   <div id="cross"></div>
-  <div id="hint">W A S D 移动　·　鼠标 转头看　·　Esc 暂停</div>
+  <div id="hint">W A S D 移动　·　空格 跳　·　鼠标 转头看　·　Esc 暂停</div>
   <div id="lock" style="display:none">
     <div id="pauseBox">
       <h2>已暂停</h2>
@@ -129,13 +129,37 @@ function addBox(cx,cz,w,d,h,mat,roty){
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
   m.position.set(cx, h/2, cz); m.rotation.y=roty; m.castShadow=true; m.receiveShadow=true;
   scene.add(m);
-  colliders.push({cx, cz, hw:w/2, hd:d/2, rot:roty});
+  colliders.push({cx, cz, hw:w/2, hd:d/2, rot:roty, top:h});
+}
+// 圆塔（中央地标）
+function addTower(cx,cz,radius,h,mat){
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(radius, radius*1.1, h, 14), mat);
+  m.position.set(cx, h/2, cz); m.castShadow=true; m.receiveShadow=true; scene.add(m);
+  colliders.push({cx, cz, hw:radius, hd:radius, rot:0, top:h});
+}
+// 棕榈树（装饰 + 细碰撞）
+const palmTrunkMat=new THREE.MeshStandardMaterial({color:0x8a6b3f, roughness:1});
+const palmLeafMat=new THREE.MeshStandardMaterial({color:0x517d3a, roughness:1});
+function makePalm(mx,my){
+  const x=wx(mx), z=wz(my);
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.34,4.4,7), palmTrunkMat);
+  trunk.position.set(x,2.2,z); trunk.castShadow=true; scene.add(trunk);
+  for(let i=0;i<5;i++){
+    const leaf=new THREE.Mesh(new THREE.ConeGeometry(0.34,2.3,5), palmLeafMat);
+    leaf.position.set(x,4.4,z); leaf.rotation.z=0.95; leaf.rotation.y=i*(Math.PI*2/5);
+    leaf.castShadow=true; scene.add(leaf);
+  }
+  colliders.push({cx:x, cz:z, hw:0.35, hd:0.35, rot:0, top:4.6});
 }
 for(const it of MAP){
   const roty=-(it.rot||0);
   if(it.type==='house'){
     const hh=it.hh!==undefined?it.hh:3.8;
-    addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, hh, houseMat(hh), roty);
+    if(hh>=7){
+      addTower(wx(it.x+it.w/2), wz(it.y+it.h/2), Math.min(it.w,it.h)/2/DIV, hh, MAT.tower);
+    }else{
+      addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, hh, houseMat(hh), roty);
+    }
   }else if(it.type==='crate'){
     addBox(wx(it.x+it.w/2), wz(it.y+it.h/2), it.w/DIV, it.h/DIV, HGT.crate, MAT.crate, roty);
   }else if(it.type==='barrier'){
@@ -148,6 +172,9 @@ addBox(0, -MHH/2, MWW, 0.6, HGT.wall, MAT.wall, 0);
 addBox(0,  MHH/2, MWW, 0.6, HGT.wall, MAT.wall, 0);
 addBox(-MWW/2, 0, 0.6, MHH, HGT.wall, MAT.wall, 0);
 addBox( MWW/2, 0, 0.6, MHH, HGT.wall, MAT.wall, 0);
+// 棕榈树点缀
+makePalm(55,545); makePalm(945,545); makePalm(55,235); makePalm(945,235);
+makePalm(370,210); makePalm(630,210); makePalm(370,550); makePalm(630,550);
 
 // ===== A/B 点地面标记 + 漂浮字母 =====
 function siteMarker(it){
@@ -210,17 +237,25 @@ addEventListener('resize',()=>{
   renderer.setSize(innerWidth,innerHeight);
 });
 
-const R=0.45;
-function blocked(x,z){
+const R=0.45, EYE=1.7, STEP=0.6, GRAV=22, JUMP=7.2;
+let feet=0, vy=0;
+// 点是否在某盒子的俯视脚印内
+function inBox(b,x,z){
+  const dx=x-b.cx, dz=z-b.cz, c=Math.cos(b.rot), s=Math.sin(b.rot);
+  const lx=dx*c - dz*s, lz=dx*s + dz*c;
+  return Math.abs(lx)<b.hw+R && Math.abs(lz)<b.hd+R;
+}
+// 水平挡路：只有比脚高出一截的盒子才挡你（矮的能踩上去）
+function blockedH(x,z,ft){
   if(x<-MWW/2+R||x>MWW/2-R||z<-MHH/2+R||z>MHH/2-R) return true;
-  for(const b of colliders){
-    const dx=x-b.cx, dz=z-b.cz;
-    const c=Math.cos(b.rot), s=Math.sin(b.rot);
-    const lx= dx*c - dz*s;   // 把点转回盒子的本地坐标系（与网格旋转一致）
-    const lz= dx*s + dz*c;
-    if(Math.abs(lx)<b.hw+R && Math.abs(lz)<b.hd+R) return true;
-  }
+  for(const b of colliders) if(b.top>ft+STEP && inBox(b,x,z)) return true;
   return false;
+}
+// 脚下能站的最高面（够得着的）
+function supportAt(x,z,ft){
+  let sp=0;
+  for(const b of colliders) if(b.top<=ft+STEP && inBox(b,x,z)) sp=Math.max(sp,b.top);
+  return sp;
 }
 
 const clock=new THREE.Clock();
@@ -229,6 +264,8 @@ function animate(){
   requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),0.05);
   if(!paused){
+    const o=controls.getObject();
+    // 水平移动
     camera.getWorldDirection(fwd); fwd.y=0; fwd.normalize();
     const right=new THREE.Vector3(-fwd.z,0,fwd.x);
     const mv=new THREE.Vector3();
@@ -238,10 +275,16 @@ function animate(){
     if(keys.KeyA) mv.sub(right);
     if(mv.lengthSq()>0){
       mv.normalize().multiplyScalar(6.2*dt);
-      const o=controls.getObject();
-      if(!blocked(o.position.x+mv.x, o.position.z)) o.position.x+=mv.x;
-      if(!blocked(o.position.x, o.position.z+mv.z)) o.position.z+=mv.z;
+      if(!blockedH(o.position.x+mv.x, o.position.z, feet)) o.position.x+=mv.x;
+      if(!blockedH(o.position.x, o.position.z+mv.z, feet)) o.position.z+=mv.z;
     }
+    // 垂直：站在方块顶 + 跳 + 重力
+    const sup=supportAt(o.position.x, o.position.z, feet);
+    if(feet<=sup+0.02){ feet=sup; vy=0; if(keys.Space) vy=JUMP; }
+    vy-=GRAV*dt;
+    feet+=vy*dt;
+    if(feet<sup){ feet=sup; vy=0; }
+    o.position.y=feet+EYE;
   }
   renderer.render(scene,camera);
 }
